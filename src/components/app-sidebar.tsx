@@ -35,9 +35,9 @@ import {
 
 const data = {
   user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
+    name: "Inconnu",
+    email: "",
+    avatar: "",
   },
   navMain: [
     {
@@ -150,7 +150,50 @@ const data = {
   ],
 }
 
+import Cookies from "js-cookie";
+import { useEffect, useState } from "react";
+
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  // On part d'un user par défaut (anonyme)
+  const defaultUser = React.useMemo(() => ({
+    name: "Inconnu",
+    email: "",
+    avatar: "",
+  }), []);
+  const [user, setUser] = React.useState<typeof defaultUser>(defaultUser);
+
+  // Fonction pour charger le user depuis le cookie
+  const loadUserFromCookie = React.useCallback(() => {
+    const sessionStr = Cookies.get("pluton_session");
+    console.log('[AppSidebar] Cookie pluton_session brut:', sessionStr);
+    if (sessionStr) {
+      try {
+        const session = JSON.parse(sessionStr);
+        console.log('[AppSidebar] Session JSON parsé:', session);
+        const realUser = session?.user;
+        if (realUser) {
+          setUser({
+            name: realUser.name || "Inconnu",
+            email: realUser.email || "",
+            avatar: realUser.avatar || realUser.image || "",
+          });
+          return;
+        }
+      } catch (e) {
+        // Optionnel: log error
+      }
+    }
+    setUser(defaultUser);
+  }, [defaultUser]);
+
+  // Charger au mount et à chaque changement du cookie pluton_session
+  React.useEffect(() => {
+    loadUserFromCookie();
+    // On écoute les changements du cookie (si modifié ailleurs dans l'app)
+    const interval = setInterval(loadUserFromCookie, 2000);
+    return () => clearInterval(interval);
+  }, [loadUserFromCookie]);
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -162,7 +205,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             >
               <a href="#">
                 <IconInnerShadowTop className="!size-5" />
-                <span className="text-base font-semibold">Acme Inc.</span>
+                <span className="text-base font-semibold">Pluton</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -174,7 +217,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={user} />
       </SidebarFooter>
     </Sidebar>
   )
