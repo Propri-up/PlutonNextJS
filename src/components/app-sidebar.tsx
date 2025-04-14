@@ -165,11 +165,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // Fonction pour charger le user depuis le cookie
   const loadUserFromCookie = React.useCallback(() => {
     const sessionStr = Cookies.get("pluton_session");
-    console.log('[AppSidebar] Cookie pluton_session brut:', sessionStr);
     if (sessionStr) {
       try {
         const session = JSON.parse(sessionStr);
-        console.log('[AppSidebar] Session JSON parsé:', session);
         const realUser = session?.user;
         if (realUser) {
           setUser({
