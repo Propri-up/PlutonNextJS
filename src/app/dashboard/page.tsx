@@ -10,6 +10,7 @@ import {
 import data from "./data.json"
 
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 export default async function Page() {
   let sessionInfo = null;
@@ -21,12 +22,10 @@ export default async function Page() {
     }
   } catch (e) {
     console.error(e);
-    window.location.href = "/login";
-    return;
+    redirect("/login");
   }
   if (!sessionInfo) {
-    window.location.href = "/login";
-    return;
+    redirect("/login");
   }
 
   return (
