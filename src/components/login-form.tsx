@@ -42,7 +42,7 @@ export function LoginForm({
     try {
       const res = await signIn.email(credentials);
       if (res.error) {
-        setError(res.error.message || "L'authentification a echoué. Veuillez réessayer.");
+        setError(res.error.message || "L'authentification a échoué. Veuillez réessayer.");
       } else {
         if(!res.data.user.emailVerified) { 
           setError("Veuillez vérifier votre adresse email.");
