@@ -48,7 +48,12 @@ export function LoginForm({
           setError("Veuillez vérifier votre adresse email.");
           return;
         }
-        Cookies.set("pluton_session", JSON.stringify(res.data), { path: "/", sameSite: "lax" });
+        Cookies.set("pluton_session", JSON.stringify(res.data), { 
+          path: "/", 
+          sameSite: "lax", 
+          secure: process.env.NODE_ENV === "production", 
+          expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+        });
         router.push("/dashboard");
       }
     } catch (err: any) {
