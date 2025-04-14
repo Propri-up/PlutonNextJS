@@ -7,10 +7,27 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar"
-
 import data from "./data.json"
 
-export default function Page() {
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+
+export default async function Page() {
+  let sessionInfo = null;
+  try {
+    const cookieStore = await cookies();
+    const sessionStr = ( cookieStore.get("pluton_session"))?.value;
+    if (sessionStr) {
+      sessionInfo = JSON.parse(sessionStr);
+    }
+  } catch (e) {
+    console.error(e);
+    redirect("/login");
+  }
+  if (!sessionInfo) {
+    redirect("/login");
+  }
+
   return (
     <SidebarProvider
       style={
@@ -19,6 +36,7 @@ export default function Page() {
           "--header-height": "calc(var(--spacing) * 12)",
         } as React.CSSProperties
       }
+      className="bg-[#0A0A22] text-white min-h-screen"
     >
       <AppSidebar variant="inset" />
       <SidebarInset>
