@@ -14,20 +14,20 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 export default async function Page() {
-  let sessionInfo = null;
-  try {
-    const cookieStore = await cookies();
-    const sessionStr = ( cookieStore.get("pluton_session"))?.value;
-    if (sessionStr) {
-      sessionInfo = JSON.parse(sessionStr);
-    }
-  } catch (e) {
-    console.error(e);
-    redirect("/login");
-  }
-  if (!sessionInfo) {
-    redirect("/login");
-  }
+  // let sessionInfo = null;
+  // try {
+  //   const cookieStore = await cookies();
+  //   const sessionStr = ( cookieStore.get("pluton_session"))?.value;
+  //   if (sessionStr) {
+  //     sessionInfo = JSON.parse(sessionStr);
+  //   }
+  // } catch (e) {
+  //   console.error(e);
+  //   redirect("/login");
+  // }
+  // if (!sessionInfo) {
+  //   redirect("/login");
+  // }
 
   return (
     <SidebarProvider
