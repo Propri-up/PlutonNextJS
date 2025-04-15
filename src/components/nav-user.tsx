@@ -29,7 +29,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 
-import Cookies from "js-cookie";
+import { signOut } from "@/lib/auth-client";
 import { useRouter } from "next/navigation"
 
 
@@ -54,9 +54,9 @@ export function NavUser({
   const router = useRouter()
 
   function handleLogout() {
-    // Remove token or any relevant auth data
-    if (typeof window !== "undefined") {
-      Cookies.remove("pluton_session");
+    // Call signOut if available, otherwise just redirect
+    if (typeof signOut === "function") {
+      signOut();
     }
     router.push("/login")
   }

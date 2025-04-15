@@ -1,4 +1,3 @@
-"use client"
 import { useRouter } from "next/navigation"
 import { GalleryVerticalEnd } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -6,12 +5,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { signIn } from "@/lib/auth-client"
-import { useRef, useState, useEffect } from "react";
-import Cookies from "js-cookie";
+import { useRef, useState } from "react";
 
 interface SignInCredentials {
   email: string;
   password: string;
+  rememberMe: boolean;
 }
 
 export function LoginForm({
@@ -30,7 +29,6 @@ export function LoginForm({
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const emailIsValid = emailRegex.test(email);
 
-
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -38,23 +36,26 @@ export function LoginForm({
     const credentials: SignInCredentials = {
       email: emailRef.current?.value || "",
       password: passwordRef.current?.value || "",
+      rememberMe: true
     };
     try {
-      const res = await signIn.email(credentials);
-      if (res.error) {
-        setError(res.error.message || "L'authentification a échoué. Veuillez réessayer.");
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/sign-in/email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(credentials),
+      });
+      const data = await res.json();
+      if (res.status !== 200) {
+        setError("L'authentification a échoué. Veuillez réessayer.");
       } else {
-        if(!res.data.user.emailVerified) { 
+        if(!data.user.emailVerified) { 
           setError("Veuillez vérifier votre adresse email.");
-          return;
+        } else {
+          router.push("/dashboard");
         }
-        Cookies.set("pluton_session", JSON.stringify(res.data), { 
-          path: "/", 
-          sameSite: "lax", 
-          secure: process.env.NODE_ENV === "production", 
-          expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
-        });
-        router.push("/dashboard");
       }
     } catch (err: any) {
       setError(err.message || "Une erreur inattendue s'est produite.");
