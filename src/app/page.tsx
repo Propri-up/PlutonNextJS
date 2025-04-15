@@ -6,40 +6,70 @@ import Link from "next/link";
 import { ArrowRight, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// Composant spécifique pour l'animation lettre par lettre des types de propriété
+// Composant amélioré avec une meilleure compatibilité entre navigateurs
 const AnimatedPropertyType: React.FC<{ word: string }> = ({ word }) => {
+  // Create variants for the container and the characters
+  const container = {
+    hidden: {},
+    visible: (i = 1) => ({
+      transition: {
+        staggerChildren: 0.03,
+        delayChildren: 0.04 * i
+      }
+    }),
+    exit: {
+      transition: {
+        staggerChildren: 0.02,
+        staggerDirection: -1
+      }
+    }
+  };
+  
+  const child = {
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        type: "spring",
+        damping: 12,
+        stiffness: 200
+      }
+    },
+    hidden: {
+      opacity: 0,
+      y: 20,
+    },
+    exit: {
+      opacity: 0,
+      y: -20,
+      transition: {
+        duration: 0.2
+      }
+    }
+  };
+
   return (
-    <span className="bg-gradient-to-r from-[#3461FF] to-[#8454EB] text-transparent bg-clip-text inline-block">
-      {Array.from(word).map((letter, idx) => (
+    <motion.span
+      className="bg-gradient-to-r from-[#3461FF] to-[#8454EB] text-transparent bg-clip-text inline-block"
+      variants={container}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      style={{ display: "inline-block" }}
+    >
+      {Array.from(word).map((letter, index) => (
         <motion.span
-          key={idx}
-          initial={{ opacity: 0, y: 20, rotateX: -90 }}
-          animate={{ 
-            opacity: 1, 
-            y: 0, 
-            rotateX: 0 
-          }}
-          exit={{
-            opacity: 0,
-            y: -20,
-            rotateX: 90,
-            transition: { duration: 0.2, delay: idx * 0.01 } 
-          }}
-          transition={{ 
-            duration: 0.50,
-            delay: idx * 0.04,
-            ease: [0.215, 0.61, 0.355, 1],
-          }}
-          style={{ 
+          key={index}
+          variants={child}
+          style={{
             display: letter === " " ? "inline" : "inline-block",
-            transformStyle: "preserve-3d",
-            perspective: "1000px"
+            willChange: "transform, opacity",
           }}
         >
           {letter}
         </motion.span>
       ))}
-    </span>
+    </motion.span>
   );
 };
 
@@ -170,7 +200,10 @@ export default function Home() {
                 <AnimatePresence mode="wait">
                   <motion.span
                     key={propertyTypeIndex}
-                    style={{ perspective: "1000px", transformStyle: "preserve-3d" }}
+                    style={{ 
+                      display: "inline-block",
+                      willChange: "transform"
+                    }}
                   >
                     <AnimatedPropertyType word={propertyTypes[propertyTypeIndex]} />
                   </motion.span>
