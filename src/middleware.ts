@@ -1,6 +1,5 @@
 import type { auth } from "@/lib/auth-client";
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from 'next/headers'
  
 type Session = typeof auth.$Infer.Session;
  
