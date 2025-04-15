@@ -1,51 +1,51 @@
-"use client"
+"use client";
 
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
-import {
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/ui/sidebar"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Avatar } from "@/components/ui/avatar"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { IconSend, IconPlus, IconRefresh } from "@tabler/icons-react"
-import { useEffect, useState, useRef } from "react"
+import { AppSidebar } from "@/components/app-sidebar";
+import { SiteHeader } from "@/components/site-header";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { IconSend, IconPlus, IconRefresh, IconUser, IconRobot } from "@tabler/icons-react";
+import { useEffect, useState, useRef } from "react";
 
 // Données mock pour simuler les conversations
-const MOCK_CONVERSATIONS = [
+const MOCK_CONVERSATIONS: ChatConversation[] = [
   {
     id: "c1",
     title: "Investissements immobiliers",
     messages: [
       {
         id: "m1",
-        content: "Bonjour, j'aimerais en savoir plus sur l'investissement locatif",
+        content:
+          "Bonjour, j'aimerais en savoir plus sur l'investissement locatif",
         sender: "user" as "user",
-        timestamp: "2023-04-10T14:22:00Z"
+        timestamp: "2023-04-10T14:22:00Z",
       },
       {
         id: "m2",
-        content: "Bonjour ! Je serais ravi de vous conseiller sur l'investissement locatif. Avez-vous déjà un projet en tête ?",
+        content:
+          "Bonjour ! Je serais ravi de vous conseiller sur l'investissement locatif. Avez-vous déjà un projet en tête ?",
         sender: "assistant" as "assistant",
-        timestamp: "2023-04-10T14:23:00Z"
+        timestamp: "2023-04-10T14:23:00Z",
       },
       {
         id: "m3",
-        content: "Je cherche à investir dans une ville moyenne avec un bon rendement",
+        content:
+          "Je cherche à investir dans une ville moyenne avec un bon rendement",
         sender: "user",
-        timestamp: "2023-04-10T14:24:30Z"
+        timestamp: "2023-04-10T14:24:30Z",
       },
       {
         id: "m4",
-        content: "Excellent choix ! Les villes moyennes offrent souvent les meilleurs rendements. Je vous recommande de regarder du côté de Limoges, Orléans ou Saint-Étienne où les prix sont encore raisonnables avec des rendements entre 7 et 9%.",
+        content:
+          "Excellent choix ! Les villes moyennes offrent souvent les meilleurs rendements. Je vous recommande de regarder du côté de Limoges, Orléans ou Saint-Étienne où les prix sont encore raisonnables avec des rendements entre 7 et 9%.",
         sender: "assistant",
-        timestamp: "2023-04-10T14:26:00Z"
-      }
+        timestamp: "2023-04-10T14:26:00Z",
+      },
     ],
     createdAt: "2023-04-10T14:22:00Z",
-    updatedAt: "2023-04-10T14:26:00Z"
+    updatedAt: "2023-04-10T14:26:00Z",
   },
   {
     id: "c2",
@@ -55,34 +55,35 @@ const MOCK_CONVERSATIONS = [
         id: "m1",
         content: "Quels sont les meilleurs fonds euros actuellement ?",
         sender: "user",
-        timestamp: "2023-04-12T09:15:00Z"
+        timestamp: "2023-04-12T09:15:00Z",
       },
       {
         id: "m2",
-        content: "Les meilleurs fonds euros offrent actuellement entre 2% et 3%. Je vous recommande particulièrement ceux proposés par Spirica et Suravenir qui ont bien performé l'année dernière.",
+        content:
+          "Les meilleurs fonds euros offrent actuellement entre 2% et 3%. Je vous recommande particulièrement ceux proposés par Spirica et Suravenir qui ont bien performé l'année dernière.",
         sender: "assistant",
-        timestamp: "2023-04-12T09:16:30Z"
-      }
+        timestamp: "2023-04-12T09:16:30Z",
+      },
     ],
     createdAt: "2023-04-12T09:15:00Z",
-    updatedAt: "2023-04-12T09:16:30Z"
-  }
+    updatedAt: "2023-04-12T09:16:30Z",
+  },
 ];
 
 // Types
 interface ChatMessage {
-  id: string
-  content: string
-  sender: "user" | "assistant"
-  timestamp: string
+  id: string;
+  content: string;
+  sender: "user" | "assistant";
+  timestamp: string;
 }
 
 interface ChatConversation {
-  id: string
-  title: string
-  messages: ChatMessage[]
-  createdAt: string
-  updatedAt: string
+  id: string;
+  title: string;
+  messages: ChatMessage[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export default function ChatPage() {
@@ -93,11 +94,22 @@ export default function ChatPage() {
   const [newMessage, setNewMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
+  // Verrouiller le défilement de la page
+  useEffect(() => {
+    // Verrouiller le défilement du body au montage
+    document.body.style.overflow = 'hidden';
+    
+    // Restaurer au démontage
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, []);
+
   // Charger les conversations (immédiatement)
   const fetchChats = () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       setConversations(MOCK_CONVERSATIONS);
       if (MOCK_CONVERSATIONS.length > 0 && !currentChat) {
@@ -110,19 +122,19 @@ export default function ChatPage() {
       setLoading(false);
     }
   };
-  
+
   // Récupérer les conversations au chargement
   useEffect(() => {
     fetchChats();
   }, []);
-  
+
   // Scroll vers le bas quand de nouveaux messages arrivent
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [currentChat?.messages]);
-  
+
   // Créer une nouvelle conversation
   const createNewConversation = () => {
     const newChat: ChatConversation = {
@@ -130,63 +142,68 @@ export default function ChatPage() {
       title: "Nouvelle conversation",
       messages: [],
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
     };
-    
-    setConversations(prev => [newChat, ...prev]);
+
+    setConversations((prev) => [newChat, ...prev]);
     setCurrentChat(newChat);
   };
-  
+
   // Envoyer un message (sans réponse automatique)
   const handleSendMessage = () => {
     if (!newMessage.trim() || !currentChat) return;
-    
+
     // Message de l'utilisateur
     const userMessage: ChatMessage = {
       id: `m${Date.now()}`,
       content: newMessage,
       sender: "user",
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
-    
+
     // Mise à jour de la conversation
     const updatedChat = {
       ...currentChat,
       messages: [...currentChat.messages, userMessage],
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
     };
-    
+
     // Mise à jour de l'état
     setCurrentChat(updatedChat);
-    setConversations(prevConvs => 
-      prevConvs.map(conv => 
-        conv.id === currentChat.id ? updatedChat : conv
-      )
+    setConversations((prevConvs) =>
+      prevConvs.map((conv) => (conv.id === currentChat.id ? updatedChat : conv))
     );
-    
+
     // Réinitialiser le champ de message
     setNewMessage("");
   };
-  
+
   // Changer de conversation
   const switchConversation = (id: string) => {
     if (id === currentChat?.id) return;
-    
-    const chat = conversations.find(c => c.id === id) || null;
+
+    const chat = conversations.find((c) => c.id === id) || null;
     setCurrentChat(chat);
   };
-  
+
   // Formatter la date pour l'affichage
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', {
-      day: 'numeric', 
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) throw new Error("Date invalide");
+      
+      return date.toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch (e) {
+      console.error("Erreur de formatage de date:", e);
+      return "Date inconnue";
+    }
   };
-  
+
   return (
     <SidebarProvider
       style={
@@ -195,20 +212,23 @@ export default function ChatPage() {
           "--header-height": "calc(var(--spacing) * 12)",
         } as React.CSSProperties
       }
-      className="bg-[#0A0A22] text-white min-h-screen"
+      // Suppression de min-h-screen pour éviter le défilement de la page
+      className="bg-[#0A0A22] text-white h-screen"
     >
-
       <AppSidebar variant="inset" />
-      <SidebarInset>
+      {/* Ajout d'overflow-hidden pour empêcher le défilement */}
+      <SidebarInset className="h-screen flex flex-col overflow-hidden">
         <SiteHeader />
-        <div className="flex flex-1 h-[calc(100vh-var(--header-height))]">
+        
+        {/* Conteneur principal avec hauteur fixe et overflow caché */}
+        <div className="flex flex-1 h-[calc(100vh-var(--header-height))] overflow-hidden">
           {/* Liste des conversations */}
-          <div className="w-64 border-r border-border flex flex-col">
-            <div className="p-4 border-b border-border flex justify-between items-center">
+          <div className="w-64 border-r border-border flex flex-col h-full overflow-hidden">
+            <div className="p-4 border-b border-border flex justify-between items-center shrink-0">
               <h2 className="font-medium">Conversations</h2>
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={createNewConversation}
                 disabled={loading}
                 className="h-8 w-8"
@@ -216,14 +236,18 @@ export default function ChatPage() {
                 <IconPlus className="h-4 w-4" />
               </Button>
             </div>
-            <ScrollArea className="flex-1">
+
+            {/* Zone défilante pour les conversations */}
+            <div className="flex-1 overflow-y-auto">
               {conversations.length > 0 ? (
                 <div className="p-2 space-y-1">
-                  {conversations.map(chat => (
+                  {conversations.map((chat) => (
                     <div
                       key={chat.id}
                       className={`px-3 py-2 rounded-md cursor-pointer text-sm hover:bg-accent/50 ${
-                        currentChat?.id === chat.id ? 'bg-accent text-accent-foreground' : ''
+                        currentChat?.id === chat.id
+                          ? "bg-accent text-accent-foreground"
+                          : ""
                       }`}
                       onClick={() => switchConversation(chat.id)}
                     >
@@ -239,12 +263,13 @@ export default function ChatPage() {
                   {loading ? "Chargement..." : "Aucune conversation"}
                 </div>
               )}
-            </ScrollArea>
+            </div>
           </div>
-          
-          {/* Zone de chat */}
-          <div className="flex flex-1 flex-col">
-            <ScrollArea className="flex-1 p-4">
+
+          {/* Zone de chat - Structure fixe avec zone de défilement pour messages */}
+          <div className="flex flex-1 flex-col h-full overflow-hidden">
+            {/* Zone des messages avec défilement */}
+            <div className="flex-1 overflow-y-auto p-4" id="messagesContainer">
               {loading ? (
                 <div className="flex justify-center items-center h-full">
                   <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
@@ -252,8 +277,8 @@ export default function ChatPage() {
               ) : error ? (
                 <div className="flex flex-col items-center justify-center h-full">
                   <p className="text-destructive mb-4">{error}</p>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={fetchChats}
                     className="flex items-center gap-2"
                   >
@@ -264,23 +289,33 @@ export default function ChatPage() {
               ) : currentChat?.messages?.length ? (
                 <div className="space-y-4 pb-4">
                   {currentChat.messages.map((msg) => (
-                    <div 
+                    <div
                       key={msg.id}
                       className={`flex items-start gap-3 max-w-[80%] ${
-                        msg.sender === 'user' ? 'ml-auto flex-row-reverse' : ''
+                        msg.sender === "user" ? "ml-auto flex-row-reverse" : ""
                       }`}
                     >
-                      <Avatar className={`h-8 w-8 ${
-                        msg.sender === 'user' ? 'bg-primary' : 'bg-secondary'
-                      }`}>
-                        <span>{msg.sender === 'user' ? 'U' : 'P'}</span>
+                      <Avatar
+                        className={`h-8 w-8 ${
+                          msg.sender === "user" ? "bg-primary" : "bg-secondary"
+                        }`}
+                      >
+                        <AvatarFallback>
+                          {msg.sender === "user" ? (
+                            <IconUser className="h-4 w-4" />
+                          ) : (
+                            <IconRobot className="h-4 w-4" />
+                          )}
+                        </AvatarFallback>
                       </Avatar>
-                      <div className={`rounded-lg p-3 ${
-                        msg.sender === 'user' 
-                          ? 'bg-primary text-primary-foreground' 
-                          : 'bg-secondary text-secondary-foreground'
-                      }`}>
-                        <p>{msg.content}</p>
+                      <div
+                        className={`rounded-lg p-3 ${
+                          msg.sender === "user"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-secondary text-secondary-foreground"
+                        }`}
+                      >
+                        <p className="whitespace-pre-wrap break-words">{msg.content}</p>
                         <p className="text-xs opacity-75 mt-1">
                           {formatDate(msg.timestamp)}
                         </p>
@@ -296,8 +331,8 @@ export default function ChatPage() {
                   ) : (
                     <>
                       <p>Aucune conversation sélectionnée</p>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         className="mt-4"
                         onClick={createNewConversation}
                       >
@@ -307,28 +342,28 @@ export default function ChatPage() {
                   )}
                 </div>
               )}
-            </ScrollArea>
-            
-            {/* Input area */}
-            <div className="border-t border-border p-4">
+            </div>
+
+            {/* Zone de saisie - fixe et ne rétrécit pas */}
+            <div className="border-t border-border p-4 shrink-0 bg-[#0A0A22]">
               <div className="flex items-center gap-2">
-                <Input 
-                  placeholder="Écrivez votre message..." 
+                <Input
+                  placeholder="Écrivez votre message..."
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      handleSendMessage()
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
                     }
                   }}
                   disabled={loading || !currentChat}
                   className="flex-1"
                 />
-                <Button 
+                <Button
                   onClick={handleSendMessage}
                   disabled={loading || !newMessage.trim() || !currentChat}
-                  className="gap-2"
+                  className="gap-2 flex-shrink-0"
                 >
                   <IconSend className="h-4 w-4" />
                   Envoyer
@@ -339,5 +374,5 @@ export default function ChatPage() {
         </div>
       </SidebarInset>
     </SidebarProvider>
-  )
+  );
 }
