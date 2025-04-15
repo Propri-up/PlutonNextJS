@@ -9,10 +9,67 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar } from "@/components/ui/avatar"
-import { IconSend, IconPaperclip, IconMicrophone, IconRefresh, IconPlus } from "@tabler/icons-react"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { IconSend, IconPlus, IconRefresh } from "@tabler/icons-react"
 import { useEffect, useState, useRef } from "react"
-import Cookies from "js-cookie"
 
+// Données mock pour simuler les conversations
+const MOCK_CONVERSATIONS = [
+  {
+    id: "c1",
+    title: "Investissements immobiliers",
+    messages: [
+      {
+        id: "m1",
+        content: "Bonjour, j'aimerais en savoir plus sur l'investissement locatif",
+        sender: "user" as "user",
+        timestamp: "2023-04-10T14:22:00Z"
+      },
+      {
+        id: "m2",
+        content: "Bonjour ! Je serais ravi de vous conseiller sur l'investissement locatif. Avez-vous déjà un projet en tête ?",
+        sender: "assistant" as "assistant",
+        timestamp: "2023-04-10T14:23:00Z"
+      },
+      {
+        id: "m3",
+        content: "Je cherche à investir dans une ville moyenne avec un bon rendement",
+        sender: "user",
+        timestamp: "2023-04-10T14:24:30Z"
+      },
+      {
+        id: "m4",
+        content: "Excellent choix ! Les villes moyennes offrent souvent les meilleurs rendements. Je vous recommande de regarder du côté de Limoges, Orléans ou Saint-Étienne où les prix sont encore raisonnables avec des rendements entre 7 et 9%.",
+        sender: "assistant",
+        timestamp: "2023-04-10T14:26:00Z"
+      }
+    ],
+    createdAt: "2023-04-10T14:22:00Z",
+    updatedAt: "2023-04-10T14:26:00Z"
+  },
+  {
+    id: "c2",
+    title: "Assurance vie",
+    messages: [
+      {
+        id: "m1",
+        content: "Quels sont les meilleurs fonds euros actuellement ?",
+        sender: "user",
+        timestamp: "2023-04-12T09:15:00Z"
+      },
+      {
+        id: "m2",
+        content: "Les meilleurs fonds euros offrent actuellement entre 2% et 3%. Je vous recommande particulièrement ceux proposés par Spirica et Suravenir qui ont bien performé l'année dernière.",
+        sender: "assistant",
+        timestamp: "2023-04-12T09:16:30Z"
+      }
+    ],
+    createdAt: "2023-04-12T09:15:00Z",
+    updatedAt: "2023-04-12T09:16:30Z"
+  }
+];
+
+// Types
 interface ChatMessage {
   id: string
   content: string
@@ -29,195 +86,106 @@ interface ChatConversation {
 }
 
 export default function ChatPage() {
-  const [conversations, setConversations] = useState<ChatConversation[]>([])
-  const [currentChat, setCurrentChat] = useState<ChatConversation | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [sendingMessage, setSendingMessage] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [newMessage, setNewMessage] = useState("")
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [conversations, setConversations] = useState<ChatConversation[]>([]);
+  const [currentChat, setCurrentChat] = useState<ChatConversation | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [newMessage, setNewMessage] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  const fetchChats = async () => {
-    setLoading(true)
-    setError(null)
+  // Charger les conversations (immédiatement)
+  const fetchChats = () => {
+    setLoading(true);
+    setError(null);
+    
     try {
-      const sessionStr = Cookies.get("pluton_session")
-      if (!sessionStr) {
-        setError("Session non trouvée")
-        return
-      }
-      
-      const session = JSON.parse(sessionStr)
-      const response = await fetch("https://api.pluton.tools/api/chat/list", {
-        headers: {
-          "Authorization": `Bearer ${session.access_token}`,
-          "Content-Type": "application/json"
-        }
-      })
-      
-      if (!response.ok) {
-        throw new Error(`Erreur API: ${response.status}`)
-      }
-      
-      const data = await response.json()
-      setConversations(data)
-      
-      // Sélectionner la conversation la plus récente par défaut
-      if (data.length > 0) {
-        setCurrentChat(data[0])
+      setConversations(MOCK_CONVERSATIONS);
+      if (MOCK_CONVERSATIONS.length > 0 && !currentChat) {
+        switchConversation(MOCK_CONVERSATIONS[0].id);
       }
     } catch (err) {
-      console.error("Erreur lors du chargement des conversations:", err)
-      setError("Impossible de charger les conversations")
+      console.error("Erreur lors du chargement des conversations:", err);
+      setError("Impossible de charger les conversations");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
   
-  // Récupérer la liste des conversations
+  // Récupérer les conversations au chargement
   useEffect(() => {
-    fetchChats()
-  }, [])
+    fetchChats();
+  }, []);
   
   // Scroll vers le bas quand de nouveaux messages arrivent
   useEffect(() => {
     if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [currentChat?.messages])
+  }, [currentChat?.messages]);
   
-  const createNewConversation = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const sessionStr = Cookies.get("pluton_session")
-      if (!sessionStr) {
-        setError("Session non trouvée")
-        return
-      }
-      
-      const session = JSON.parse(sessionStr)
-      const response = await fetch("https://api.pluton.tools/api/chat", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${session.access_token}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          title: "Nouvelle conversation"
-        })
-      })
-      
-      if (!response.ok) {
-        throw new Error(`Erreur API: ${response.status}`)
-      }
-      
-      // Rafraîchir la liste des conversations
-      fetchChats()
-    } catch (err) {
-      console.error("Erreur lors de la création de la conversation:", err)
-      setError("Impossible de créer une nouvelle conversation")
-    } finally {
-      setLoading(false)
-    }
-  }
-  
-  // Fonction pour envoyer un message
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !currentChat || sendingMessage) return
+  // Créer une nouvelle conversation
+  const createNewConversation = () => {
+    const newChat: ChatConversation = {
+      id: `c${Date.now()}`,
+      title: "Nouvelle conversation",
+      messages: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
     
-    // Optimistic update
-    const tempMessage: ChatMessage = {
-      id: Date.now().toString(),
+    setConversations(prev => [newChat, ...prev]);
+    setCurrentChat(newChat);
+  };
+  
+  // Envoyer un message (sans réponse automatique)
+  const handleSendMessage = () => {
+    if (!newMessage.trim() || !currentChat) return;
+    
+    // Message de l'utilisateur
+    const userMessage: ChatMessage = {
+      id: `m${Date.now()}`,
       content: newMessage,
       sender: "user",
       timestamp: new Date().toISOString()
-    }
+    };
     
-    setCurrentChat(prev => {
-      if (!prev) return null
-      return {
-        ...prev,
-        messages: [...prev.messages, tempMessage]
-      }
-    })
+    // Mise à jour de la conversation
+    const updatedChat = {
+      ...currentChat,
+      messages: [...currentChat.messages, userMessage],
+      updatedAt: new Date().toISOString()
+    };
     
-    const messageContent = newMessage
-    setNewMessage("")
-    setSendingMessage(true)
+    // Mise à jour de l'état
+    setCurrentChat(updatedChat);
+    setConversations(prevConvs => 
+      prevConvs.map(conv => 
+        conv.id === currentChat.id ? updatedChat : conv
+      )
+    );
     
-    // Envoi réel à l'API
-    try {
-      const sessionStr = Cookies.get("pluton_session")
-      if (!sessionStr) {
-        setError("Session non trouvée")
-        return
-      }
-      
-      const session = JSON.parse(sessionStr)
-      const response = await fetch(`https://api.pluton.tools/api/chat/${currentChat.id}/message`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${session.access_token}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          content: messageContent
-        })
-      })
-      
-      if (!response.ok) {
-        throw new Error(`Erreur API: ${response.status}`)
-      }
-      
-      // Mettre à jour avec la réponse du bot
-      const responseData = await response.json()
-      
-      // Mettre à jour la conversation
-      setCurrentChat(responseData)
-    } catch (err) {
-      console.error("Erreur lors de l'envoi du message:", err)
-      setError("Impossible d'envoyer le message")
-      // Restaurer le message en cas d'erreur
-      setNewMessage(messageContent)
-    } finally {
-      setSendingMessage(false)
-    }
-  }
+    // Réinitialiser le champ de message
+    setNewMessage("");
+  };
   
-  const switchConversation = async (id: string) => {
-    if (id === currentChat?.id) return
+  // Changer de conversation
+  const switchConversation = (id: string) => {
+    if (id === currentChat?.id) return;
     
-    setLoading(true)
-    setError(null)
-    try {
-      const sessionStr = Cookies.get("pluton_session")
-      if (!sessionStr) {
-        setError("Session non trouvée")
-        return
-      }
-      
-      const session = JSON.parse(sessionStr)
-      const response = await fetch(`https://api.pluton.tools/api/chat/${id}`, {
-        headers: {
-          "Authorization": `Bearer ${session.access_token}`,
-          "Content-Type": "application/json"
-        }
-      })
-      
-      if (!response.ok) {
-        throw new Error(`Erreur API: ${response.status}`)
-      }
-      
-      const data = await response.json()
-      setCurrentChat(data)
-    } catch (err) {
-      console.error("Erreur lors du chargement de la conversation:", err)
-      setError("Impossible de charger la conversation")
-    } finally {
-      setLoading(false)
-    }
-  }
+    const chat = conversations.find(c => c.id === id) || null;
+    setCurrentChat(chat);
+  };
+  
+  // Formatter la date pour l'affichage
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR', {
+      day: 'numeric', 
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
   
   return (
     <SidebarProvider
@@ -229,143 +197,142 @@ export default function ChatPage() {
       }
       className="bg-[#0A0A22] text-white min-h-screen"
     >
+
       <AppSidebar variant="inset" />
       <SidebarInset>
         <SiteHeader />
-        <div className="flex flex-1 flex-col h-[calc(100vh-var(--header-height))]">
-          <div className="flex h-full">
-            {/* Liste des conversations */}
-            <div className="w-64 border-r border-slate-800 overflow-y-auto">
-              <div className="p-4 flex justify-between items-center border-b border-slate-800">
-                <h2 className="font-semibold">Conversations</h2>
-                <Button 
-                  size="icon" 
-                  variant="ghost" 
-                  className="rounded-full hover:bg-slate-800"
-                  onClick={createNewConversation}
-                  disabled={loading}
-                >
-                  <IconPlus className="h-5 w-5" />
-                </Button>
-              </div>
+        <div className="flex flex-1 h-[calc(100vh-var(--header-height))]">
+          {/* Liste des conversations */}
+          <div className="w-64 border-r border-border flex flex-col">
+            <div className="p-4 border-b border-border flex justify-between items-center">
+              <h2 className="font-medium">Conversations</h2>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={createNewConversation}
+                disabled={loading}
+                className="h-8 w-8"
+              >
+                <IconPlus className="h-4 w-4" />
+              </Button>
+            </div>
+            <ScrollArea className="flex-1">
               {conversations.length > 0 ? (
-                <div className="space-y-1 p-2">
-                  {conversations.map(conv => (
+                <div className="p-2 space-y-1">
+                  {conversations.map(chat => (
                     <div
-                      key={conv.id}
-                      className={`px-3 py-2 rounded-md cursor-pointer text-sm truncate hover:bg-slate-800 ${
-                        currentChat?.id === conv.id ? 'bg-slate-800' : ''
+                      key={chat.id}
+                      className={`px-3 py-2 rounded-md cursor-pointer text-sm hover:bg-accent/50 ${
+                        currentChat?.id === chat.id ? 'bg-accent text-accent-foreground' : ''
                       }`}
-                      onClick={() => switchConversation(conv.id)}
+                      onClick={() => switchConversation(chat.id)}
                     >
-                      {conv.title}
+                      <div className="font-medium truncate">{chat.title}</div>
+                      <div className="text-xs opacity-75 truncate">
+                        {formatDate(chat.updatedAt)}
+                      </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="p-4 text-center text-sm text-gray-400">
+                <div className="p-4 text-center text-sm text-muted-foreground">
                   {loading ? "Chargement..." : "Aucune conversation"}
                 </div>
               )}
-            </div>
-            
-            {/* Zone de chat */}
-            <div className="flex-1 flex flex-col">
-              {/* Chat container */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {loading ? (
-                  <div className="flex justify-center items-center h-full">
-                    <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500"></div>
-                  </div>
-                ) : error ? (
-                  <div className="flex flex-col items-center justify-center h-full">
-                    <p className="text-red-500 mb-4">{error}</p>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => window.location.reload()}
-                      className="flex items-center gap-2"
-                    >
-                      <IconRefresh className="h-4 w-4" />
-                      Réessayer
-                    </Button>
-                  </div>
-                ) : currentChat?.messages?.length ? (
-                  <>
-                    {currentChat.messages.map((msg) => (
-                      <div 
-                        key={msg.id}
-                        className={`flex items-start gap-3 max-w-[80%] ${
-                          msg.sender === 'user' ? 'ml-auto flex-row-reverse' : ''
-                        }`}
-                      >
-                        <Avatar className={`h-8 w-8 border ${
-                          msg.sender === 'user' ? 'bg-blue-600' : 'bg-slate-800'
-                        }`}>
-                          <span>{msg.sender === 'user' ? 'U' : 'P'}</span>
-                        </Avatar>
-                        <div className={`rounded-lg p-3 ${
-                          msg.sender === 'user' ? 'bg-blue-600' : 'bg-slate-800'
-                        }`}>
-                          <p className="text-sm">{msg.content}</p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            {new Date(msg.timestamp).toLocaleTimeString()}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                    {sendingMessage && (
-                      <div className="text-center py-2">
-                        <span className="inline-block animate-pulse text-gray-400">Pluton réfléchit...</span>
-                      </div>
-                    )}
-                    <div ref={messagesEndRef} />
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                    <p>Commencez une nouvelle conversation</p>
-                    <p className="text-sm mt-2">Posez une question à Pluton</p>
-                  </div>
-                )}
-              </div>
-              
-              {/* Input area */}
-              <div className="border-t border-slate-800 p-4">
-                <div className="flex items-center gap-2">
-                  <Button size="icon" variant="ghost" className="rounded-full">
-                    <IconPaperclip className="h-5 w-5" />
-                  </Button>
-                  <div className="relative flex-1">
-                    <Input 
-                      placeholder="Écrivez votre message..." 
-                      className="bg-slate-800 border-slate-700 pr-10 focus-visible:ring-blue-500"
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault()
-                          handleSendMessage()
-                        }
-                      }}
-                      disabled={loading || sendingMessage || !currentChat}
-                    />
-                    <Button 
-                      size="icon" 
-                      variant="ghost" 
-                      className="absolute right-0 top-0 h-full"
-                      disabled={loading || sendingMessage || !currentChat}
-                    >
-                      <IconMicrophone className="h-5 w-5" />
-                    </Button>
-                  </div>
+            </ScrollArea>
+          </div>
+          
+          {/* Zone de chat */}
+          <div className="flex flex-1 flex-col">
+            <ScrollArea className="flex-1 p-4">
+              {loading ? (
+                <div className="flex justify-center items-center h-full">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
+                </div>
+              ) : error ? (
+                <div className="flex flex-col items-center justify-center h-full">
+                  <p className="text-destructive mb-4">{error}</p>
                   <Button 
-                    size="icon" 
-                    className="rounded-full bg-blue-600 hover:bg-blue-700"
-                    onClick={handleSendMessage}
-                    disabled={loading || sendingMessage || !newMessage.trim() || !currentChat}
+                    variant="outline" 
+                    onClick={fetchChats}
+                    className="flex items-center gap-2"
                   >
-                    <IconSend className="h-5 w-5" />
+                    <IconRefresh className="h-4 w-4" />
+                    Réessayer
                   </Button>
                 </div>
+              ) : currentChat?.messages?.length ? (
+                <div className="space-y-4 pb-4">
+                  {currentChat.messages.map((msg) => (
+                    <div 
+                      key={msg.id}
+                      className={`flex items-start gap-3 max-w-[80%] ${
+                        msg.sender === 'user' ? 'ml-auto flex-row-reverse' : ''
+                      }`}
+                    >
+                      <Avatar className={`h-8 w-8 ${
+                        msg.sender === 'user' ? 'bg-primary' : 'bg-secondary'
+                      }`}>
+                        <span>{msg.sender === 'user' ? 'U' : 'P'}</span>
+                      </Avatar>
+                      <div className={`rounded-lg p-3 ${
+                        msg.sender === 'user' 
+                          ? 'bg-primary text-primary-foreground' 
+                          : 'bg-secondary text-secondary-foreground'
+                      }`}>
+                        <p>{msg.content}</p>
+                        <p className="text-xs opacity-75 mt-1">
+                          {formatDate(msg.timestamp)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={messagesEndRef} />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                  {currentChat ? (
+                    <p>Commencez la conversation</p>
+                  ) : (
+                    <>
+                      <p>Aucune conversation sélectionnée</p>
+                      <Button 
+                        variant="outline" 
+                        className="mt-4"
+                        onClick={createNewConversation}
+                      >
+                        Nouvelle conversation
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
+            </ScrollArea>
+            
+            {/* Input area */}
+            <div className="border-t border-border p-4">
+              <div className="flex items-center gap-2">
+                <Input 
+                  placeholder="Écrivez votre message..." 
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      handleSendMessage()
+                    }
+                  }}
+                  disabled={loading || !currentChat}
+                  className="flex-1"
+                />
+                <Button 
+                  onClick={handleSendMessage}
+                  disabled={loading || !newMessage.trim() || !currentChat}
+                  className="gap-2"
+                >
+                  <IconSend className="h-4 w-4" />
+                  Envoyer
+                </Button>
               </div>
             </div>
           </div>
