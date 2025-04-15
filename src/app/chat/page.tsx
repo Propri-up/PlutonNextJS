@@ -6,8 +6,18 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { IconSend, IconPlus, IconRefresh, IconUser, IconRobot } from "@tabler/icons-react";
+import {
+  IconSend,
+  IconPlus,
+  IconRefresh,
+  IconUser,
+  IconRobot,
+  IconMenu2,
+  IconX,
+  IconChevronLeft,
+} from "@tabler/icons-react";
 import { useEffect, useState, useRef } from "react";
+import { cn } from "@/lib/utils";
 
 // Données mock pour simuler les conversations
 const MOCK_CONVERSATIONS: ChatConversation[] = [
@@ -92,16 +102,17 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");
+  const [showSidebar, setShowSidebar] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
+
   // Verrouiller le défilement de la page
   useEffect(() => {
     // Verrouiller le défilement du body au montage
-    document.body.style.overflow = 'hidden';
-    
+    document.body.style.overflow = "hidden";
+
     // Restaurer au démontage
     return () => {
-      document.body.style.overflow = '';
+      document.body.style.overflow = "";
     };
   }, []);
 
@@ -135,6 +146,18 @@ export default function ChatPage() {
     }
   }, [currentChat?.messages]);
 
+  // Fermer le sidebar en mode mobile quand on change de conversation
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setShowSidebar(false);
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   // Créer une nouvelle conversation
   const createNewConversation = () => {
     const newChat: ChatConversation = {
@@ -147,6 +170,7 @@ export default function ChatPage() {
 
     setConversations((prev) => [newChat, ...prev]);
     setCurrentChat(newChat);
+    setShowSidebar(false); // Fermer le sidebar en mode mobile
   };
 
   // Envoyer un message (sans réponse automatique)
@@ -184,6 +208,7 @@ export default function ChatPage() {
 
     const chat = conversations.find((c) => c.id === id) || null;
     setCurrentChat(chat);
+    setShowSidebar(false); // Fermer le sidebar en mode mobile
   };
 
   // Formatter la date pour l'affichage
@@ -191,7 +216,7 @@ export default function ChatPage() {
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) throw new Error("Date invalide");
-      
+
       return date.toLocaleDateString("fr-FR", {
         day: "numeric",
         month: "short",
@@ -212,20 +237,36 @@ export default function ChatPage() {
           "--header-height": "calc(var(--spacing) * 12)",
         } as React.CSSProperties
       }
-      // Suppression de min-h-screen pour éviter le défilement de la page
       className="bg-[#0A0A22] text-white h-screen"
     >
       <AppSidebar variant="inset" />
-      {/* Ajout d'overflow-hidden pour empêcher le défilement */}
       <SidebarInset className="h-screen flex flex-col overflow-hidden">
         <SiteHeader />
-        
-        {/* Conteneur principal avec hauteur fixe et overflow caché */}
-        <div className="flex flex-1 h-[calc(100vh-var(--header-height))] overflow-hidden">
-          {/* Liste des conversations */}
-          <div className="w-64 border-r border-border flex flex-col h-full overflow-hidden">
-            <div className="p-4 border-b border-border flex justify-between items-center shrink-0">
-              <h2 className="font-medium">Conversations</h2>
+
+        {/* Conteneur principal avec hauteur fixe et layout flex adaptatif */}
+        <div className="flex flex-1 h-[calc(100vh-var(--header-height))] overflow-hidden flex-col md:flex-row">
+          {/* Liste des conversations - adaptative pour mobile */}
+          <div
+            className={cn(
+              "border-r border-border flex flex-col overflow-hidden transition-all duration-300",
+              "md:w-64 md:block md:static md:min-h-0",
+              showSidebar
+                ? "fixed inset-0 z-50 bg-[#0A0A22] w-full h-full"
+                : "hidden"
+            )}
+          >
+            <div className="p-3 border-b border-border flex justify-between items-center shrink-0">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowSidebar(false)}
+                  className="md:hidden h-8 w-8"
+                >
+                  <IconChevronLeft className="h-4 w-4" />
+                </Button>
+                <h2 className="font-medium">Conversations</h2>
+              </div>
               <Button
                 variant="ghost"
                 size="icon"
@@ -244,11 +285,12 @@ export default function ChatPage() {
                   {conversations.map((chat) => (
                     <div
                       key={chat.id}
-                      className={`px-3 py-2 rounded-md cursor-pointer text-sm hover:bg-accent/50 ${
+                      className={cn(
+                        "px-3 py-2 rounded-md cursor-pointer text-sm hover:bg-accent/50",
                         currentChat?.id === chat.id
                           ? "bg-accent text-accent-foreground"
                           : ""
-                      }`}
+                      )}
                       onClick={() => switchConversation(chat.id)}
                     >
                       <div className="font-medium truncate">{chat.title}</div>
@@ -268,8 +310,26 @@ export default function ChatPage() {
 
           {/* Zone de chat - Structure fixe avec zone de défilement pour messages */}
           <div className="flex flex-1 flex-col h-full overflow-hidden">
+            {/* Bouton d'affichage des conversations sur mobile */}
+            <div className="md:hidden p-3 border-b border-border flex items-center shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowSidebar(true)}
+                className="flex items-center gap-2"
+              >
+                <IconMenu2 className="h-4 w-4" />
+                <span className="truncate">
+                  {currentChat?.title || "Sélectionner une conversation"}
+                </span>
+              </Button>
+            </div>
+
             {/* Zone des messages avec défilement */}
-            <div className="flex-1 overflow-y-auto p-4" id="messagesContainer">
+            <div
+              className="flex-1 overflow-y-auto p-3 md:p-4"
+              id="messagesContainer"
+            >
               {loading ? (
                 <div className="flex justify-center items-center h-full">
                   <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
@@ -287,36 +347,42 @@ export default function ChatPage() {
                   </Button>
                 </div>
               ) : currentChat?.messages?.length ? (
-                <div className="space-y-4 pb-4">
+                <div className="space-y-3 md:space-y-4 pb-2">
                   {currentChat.messages.map((msg) => (
                     <div
                       key={msg.id}
-                      className={`flex items-start gap-3 max-w-[80%] ${
+                      className={cn(
+                        "flex items-start gap-2 md:gap-3",
+                        "max-w-[85%] md:max-w-[80%]",
                         msg.sender === "user" ? "ml-auto flex-row-reverse" : ""
-                      }`}
+                      )}
                     >
                       <Avatar
-                        className={`h-8 w-8 ${
+                        className={cn(
+                          "h-7 w-7 md:h-8 md:w-8",
                           msg.sender === "user" ? "bg-primary" : "bg-secondary"
-                        }`}
+                        )}
                       >
                         <AvatarFallback>
                           {msg.sender === "user" ? (
-                            <IconUser className="h-4 w-4" />
+                            <IconUser className="h-3.5 w-3.5 md:h-4 md:w-4" />
                           ) : (
-                            <IconRobot className="h-4 w-4" />
+                            <IconRobot className="h-3.5 w-3.5 md:h-4 md:w-4" />
                           )}
                         </AvatarFallback>
                       </Avatar>
                       <div
-                        className={`rounded-lg p-3 ${
+                        className={cn(
+                          "rounded-lg p-2 md:p-3",
                           msg.sender === "user"
                             ? "bg-primary text-primary-foreground"
                             : "bg-secondary text-secondary-foreground"
-                        }`}
+                        )}
                       >
-                        <p className="whitespace-pre-wrap break-words">{msg.content}</p>
-                        <p className="text-xs opacity-75 mt-1">
+                        <p className="whitespace-pre-wrap break-words text-sm md:text-base">
+                          {msg.content}
+                        </p>
+                        <p className="text-[10px] md:text-xs opacity-75 mt-1">
                           {formatDate(msg.timestamp)}
                         </p>
                       </div>
@@ -344,8 +410,8 @@ export default function ChatPage() {
               )}
             </div>
 
-            {/* Zone de saisie - fixe et ne rétrécit pas */}
-            <div className="border-t border-border p-4 shrink-0 bg-[#0A0A22]">
+            {/* Zone de saisie - fixe et adaptative pour mobile */}
+            <div className="border-t border-border p-3 md:p-4 shrink-0 bg-[#0A0A22]">
               <div className="flex items-center gap-2">
                 <Input
                   placeholder="Écrivez votre message..."
@@ -358,15 +424,16 @@ export default function ChatPage() {
                     }
                   }}
                   disabled={loading || !currentChat}
-                  className="flex-1"
+                  className="flex-1 h-9 md:h-10 text-sm md:text-base"
                 />
                 <Button
                   onClick={handleSendMessage}
                   disabled={loading || !newMessage.trim() || !currentChat}
-                  className="gap-2 flex-shrink-0"
+                  className="h-9 md:h-10 px-3 md:px-4 flex-shrink-0"
+                  size="sm"
                 >
                   <IconSend className="h-4 w-4" />
-                  Envoyer
+                  <span className="hidden md:inline ml-2">Envoyer</span>
                 </Button>
               </div>
             </div>
