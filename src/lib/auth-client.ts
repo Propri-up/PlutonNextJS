@@ -1,9 +1,9 @@
 import { createAuthClient } from "better-auth/react";
 
 export const { signIn, signUp, signOut, getSession } = createAuthClient({
-  baseURL: "https://api.pluton.tools",
+  baseURL: `${process.env.NEXT_PUBLIC_API_URL}`,
 }); 
 
 export const auth = createAuthClient({
-  baseURL: "https://api.pluton.tools" ,
+  baseURL: `${process.env.NEXT_PUBLIC_API_URL}` ,
 });

@@ -39,7 +39,7 @@ export function LoginForm({
       rememberMe: true
     };
     try {
-      const res = await fetch("https://api.pluton.tools/api/auth/sign-in/email", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/sign-in/email`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

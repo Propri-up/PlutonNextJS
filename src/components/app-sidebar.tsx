@@ -83,10 +83,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // Fonction pour charger le user depuis la session
   const loadUserFromSession = React.useCallback(async () => {
     try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/get-session`, {
+        credentials: "include"
+      });
+      const session = await res.json() as { user: { name: string, email: string, avatar: string } };
+      if (!session || !session.user) {
+        return;
+      }
       setUser({
-        name: "Inconnu",
-        email: "",
-        avatar: "",
+        name: session.user.name,
+        email: session.user.email,
+        avatar: session.user.avatar,
       });
       return;
     } catch (e) {

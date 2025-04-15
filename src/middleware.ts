@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 type Session = typeof auth.$Infer.Session;
  
 export async function middleware(request: NextRequest) {
-	const res = await fetch(`https://api.pluton.tools/api/auth/get-session`, {
+	const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/get-session`, {
 	  headers: {
 		cookie: request.headers.get("cookie") || "",
 	  },
@@ -12,6 +12,7 @@ export async function middleware(request: NextRequest) {
 	});
 	try {
 	  const session = await res.json() as Session;
+	  console.log(session);
 	  if (!session) {
 		  return NextResponse.redirect(new URL("/login", request.url));
 	  }
