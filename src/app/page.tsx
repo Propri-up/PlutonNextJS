@@ -55,21 +55,27 @@ const AnimatedPropertyType: React.FC<{ word: string }> = ({ word }) => {
       initial="hidden"
       animate="visible"
       exit="exit"
-      style={{ display: "inline-block" }}
+      style={{
+        display: "inline-block",
+        color: '#8454EB', // fallback for browsers without bg-clip:text, matches purple
+        textShadow: '0 2px 8px #222a',
+        backgroundClip: 'text',
+        WebkitBackgroundClip: 'text',
+      }}
     >
-      {Array.from(word).map((letter, index) => (
-        <motion.span
-          key={index}
-          variants={child}
-          style={{
-            display: letter === " " ? "inline" : "inline-block",
-            willChange: "transform, opacity",
-          }}
-        >
-          {letter}
-        </motion.span>
-      ))}
-    </motion.span>
+        {Array.from(word).map((letter, index) => (
+          <motion.span
+            key={index}
+            variants={child}
+            style={{
+              display: letter === " " ? "inline" : "inline-block",
+              willChange: "transform, opacity",
+            }}
+          >
+            {letter}
+          </motion.span>
+        ))}
+      </motion.span>
   );
 };
 
