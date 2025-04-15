@@ -11,7 +11,29 @@ import { Input } from "@/components/ui/input"
 import { Avatar } from "@/components/ui/avatar"
 import { IconSend, IconPaperclip, IconMicrophone, IconRefresh, IconPlus } from "@tabler/icons-react"
 import { useEffect, useState, useRef } from "react"
-import Cookies from "js-cookie"
+// --- MOCK DATA ---
+const mockConversations: ChatConversation[] = [
+  {
+    id: "1",
+    title: "Démo Pluton",
+    messages: [
+      {
+        id: "m1",
+        content: "Bonjour, comment puis-je vous aider ?",
+        sender: "assistant",
+        timestamp: new Date().toISOString(),
+      },
+      {
+        id: "m2",
+        content: "Peux-tu me donner la météo ?",
+        sender: "user",
+        timestamp: new Date().toISOString(),
+      },
+    ],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
 
 interface ChatMessage {
   id: string
@@ -37,42 +59,17 @@ export default function ChatPage() {
   const [newMessage, setNewMessage] = useState("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
   
-  const fetchChats = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const sessionStr = Cookies.get("pluton_session")
-      if (!sessionStr) {
-        setError("Session non trouvée")
-        return
-      }
-      
-      const session = JSON.parse(sessionStr)
-      const response = await fetch("https://api.pluton.tools/api/chat/list", {
-        headers: {
-          "Authorization": `Bearer ${session.access_token}`,
-          "Content-Type": "application/json"
-        }
-      })
-      
-      if (!response.ok) {
-        throw new Error(`Erreur API: ${response.status}`)
-      }
-      
-      const data = await response.json()
-      setConversations(data)
-      
-      // Sélectionner la conversation la plus récente par défaut
-      if (data.length > 0) {
-        setCurrentChat(data[0])
-      }
-    } catch (err) {
-      console.error("Erreur lors du chargement des conversations:", err)
-      setError("Impossible de charger les conversations")
-    } finally {
-      setLoading(false)
-    }
+  // --- MOCK fetchChats ---
+  const fetchChats = () => {
+    setLoading(true);
+    setError(null);
+    setTimeout(() => {
+      setConversations(mockConversations);
+      setCurrentChat(mockConversations[0]);
+      setLoading(false);
+    }, 300);
   }
+
   
   // Récupérer la liste des conversations
   useEffect(() => {
@@ -86,138 +83,77 @@ export default function ChatPage() {
     }
   }, [currentChat?.messages])
   
-  const createNewConversation = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const sessionStr = Cookies.get("pluton_session")
-      if (!sessionStr) {
-        setError("Session non trouvée")
-        return
-      }
-      
-      const session = JSON.parse(sessionStr)
-      const response = await fetch("https://api.pluton.tools/api/chat", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${session.access_token}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          title: "Nouvelle conversation"
-        })
-      })
-      
-      if (!response.ok) {
-        throw new Error(`Erreur API: ${response.status}`)
-      }
-      
-      // Rafraîchir la liste des conversations
-      fetchChats()
-    } catch (err) {
-      console.error("Erreur lors de la création de la conversation:", err)
-      setError("Impossible de créer une nouvelle conversation")
-    } finally {
-      setLoading(false)
-    }
+  // --- MOCK createNewConversation ---
+  const createNewConversation = () => {
+    setLoading(true);
+    setError(null);
+    setTimeout(() => {
+      const newConv: ChatConversation = {
+        id: Date.now().toString(),
+        title: `Nouvelle conversation ${conversations.length + 1}`,
+        messages: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      setConversations((prev) => [newConv, ...prev]);
+      setCurrentChat(newConv);
+      setLoading(false);
+    }, 200);
   }
+
   
   // Fonction pour envoyer un message
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !currentChat || sendingMessage) return
-    
-    // Optimistic update
+  const handleSendMessage = () => {
+    if (!newMessage.trim() || !currentChat || sendingMessage) return;
+    // Optimistic update with mock assistant reply
     const tempMessage: ChatMessage = {
       id: Date.now().toString(),
       content: newMessage,
       sender: "user",
-      timestamp: new Date().toISOString()
-    }
-    
-    setCurrentChat(prev => {
-      if (!prev) return null
+      timestamp: new Date().toISOString(),
+    };
+    setCurrentChat((prev) => {
+      if (!prev) return null;
       return {
         ...prev,
-        messages: [...prev.messages, tempMessage]
-      }
-    })
-    
-    const messageContent = newMessage
-    setNewMessage("")
-    setSendingMessage(true)
-    
-    // Envoi réel à l'API
-    try {
-      const sessionStr = Cookies.get("pluton_session")
-      if (!sessionStr) {
-        setError("Session non trouvée")
-        return
-      }
-      
-      const session = JSON.parse(sessionStr)
-      const response = await fetch(`https://api.pluton.tools/api/chat/${currentChat.id}/message`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${session.access_token}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          content: messageContent
-        })
-      })
-      
-      if (!response.ok) {
-        throw new Error(`Erreur API: ${response.status}`)
-      }
-      
-      // Mettre à jour avec la réponse du bot
-      const responseData = await response.json()
-      
-      // Mettre à jour la conversation
-      setCurrentChat(responseData)
-    } catch (err) {
-      console.error("Erreur lors de l'envoi du message:", err)
-      setError("Impossible d'envoyer le message")
-      // Restaurer le message en cas d'erreur
-      setNewMessage(messageContent)
-    } finally {
-      setSendingMessage(false)
-    }
+        messages: [...prev.messages, tempMessage],
+      };
+    });
+    setSendingMessage(true);
+    setNewMessage("");
+    setTimeout(() => {
+      setCurrentChat((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          messages: [
+            ...prev.messages,
+            {
+              id: (Date.now() + 1).toString(),
+              content: "Ceci est une réponse simulée de Pluton.",
+              sender: "assistant",
+              timestamp: new Date().toISOString(),
+            },
+          ],
+        };
+      });
+      setSendingMessage(false);
+    }, 1000);
   }
+
   
-  const switchConversation = async (id: string) => {
-    if (id === currentChat?.id) return
-    
-    setLoading(true)
-    setError(null)
-    try {
-      const sessionStr = Cookies.get("pluton_session")
-      if (!sessionStr) {
-        setError("Session non trouvée")
-        return
-      }
-      
-      const session = JSON.parse(sessionStr)
-      const response = await fetch(`https://api.pluton.tools/api/chat/${id}`, {
-        headers: {
-          "Authorization": `Bearer ${session.access_token}`,
-          "Content-Type": "application/json"
-        }
-      })
-      
-      if (!response.ok) {
-        throw new Error(`Erreur API: ${response.status}`)
-      }
-      
-      const data = await response.json()
-      setCurrentChat(data)
-    } catch (err) {
-      console.error("Erreur lors du chargement de la conversation:", err)
-      setError("Impossible de charger la conversation")
-    } finally {
-      setLoading(false)
-    }
+  // --- MOCK switchConversation ---
+  const switchConversation = (id: string) => {
+    if (id === currentChat?.id) return;
+    setLoading(true);
+    setError(null);
+    setTimeout(() => {
+      const found = conversations.find((conv) => conv.id === id) || null;
+      setCurrentChat(found);
+      setLoading(false);
+    }, 200);
   }
+
   
   return (
     <SidebarProvider
