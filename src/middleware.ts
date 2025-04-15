@@ -7,7 +7,7 @@ type Session = typeof auth.$Infer.Session;
 export async function middleware(request: NextRequest) {
 	const res = await fetch(`https://api.pluton.tools/api/auth/get-session`, {
 	  headers: {
-		cookie: await cookies()
+		cookie: request.headers.get("cookie") || "",
 	  },
 	  credentials: "include",
 	});
