@@ -107,16 +107,13 @@ export default function ChatPage() {
 
   // Verrouiller le défilement de la page
   useEffect(() => {
-    // Verrouiller le défilement du body au montage
     document.body.style.overflow = "hidden";
-
-    // Restaurer au démontage
     return () => {
       document.body.style.overflow = "";
     };
   }, []);
 
-  // Charger les conversations (immédiatement)
+  // Charger les conversations
   const fetchChats = () => {
     setLoading(true);
     setError(null);
@@ -170,10 +167,9 @@ export default function ChatPage() {
 
     setConversations((prev) => [newChat, ...prev]);
     setCurrentChat(newChat);
-    setShowSidebar(false); // Fermer le sidebar en mode mobile
+    setShowSidebar(false);
   };
 
-  // Envoyer un message (sans réponse automatique)
   const handleSendMessage = () => {
     if (!newMessage.trim() || !currentChat) return;
 
@@ -243,9 +239,7 @@ export default function ChatPage() {
       <SidebarInset className="h-screen flex flex-col overflow-hidden">
         <SiteHeader />
 
-        {/* Conteneur principal avec hauteur fixe et layout flex adaptatif */}
         <div className="flex flex-1 h-[calc(100vh-var(--header-height))] overflow-hidden flex-col md:flex-row">
-          {/* Liste des conversations - adaptative pour mobile */}
           <div
             className={cn(
               "border-r border-border flex flex-col overflow-hidden transition-all duration-300",
@@ -278,7 +272,6 @@ export default function ChatPage() {
               </Button>
             </div>
 
-            {/* Zone défilante pour les conversations */}
             <div className="flex-1 overflow-y-auto">
               {conversations.length > 0 ? (
                 <div className="p-2 space-y-1">
@@ -308,9 +301,7 @@ export default function ChatPage() {
             </div>
           </div>
 
-          {/* Zone de chat - Structure fixe avec zone de défilement pour messages */}
           <div className="flex flex-1 flex-col h-full overflow-hidden">
-            {/* Bouton d'affichage des conversations sur mobile */}
             <div className="md:hidden p-3 border-b border-border flex items-center shrink-0">
               <Button
                 variant="ghost"
@@ -325,7 +316,6 @@ export default function ChatPage() {
               </Button>
             </div>
 
-            {/* Zone des messages avec défilement */}
             <div
               className="flex-1 overflow-y-auto p-3 md:p-4"
               id="messagesContainer"
@@ -410,7 +400,6 @@ export default function ChatPage() {
               )}
             </div>
 
-            {/* Zone de saisie - fixe et adaptative pour mobile */}
             <div className="border-t border-border p-3 md:p-4 shrink-0 bg-[#0A0A22]">
               <div className="flex items-center gap-2">
                 <Input
