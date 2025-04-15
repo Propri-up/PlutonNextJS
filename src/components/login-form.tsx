@@ -1,4 +1,3 @@
-"use client"
 import { useRouter } from "next/navigation"
 import { GalleryVerticalEnd } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -11,6 +10,7 @@ import { useRef, useState } from "react";
 interface SignInCredentials {
   email: string;
   password: string;
+  rememberMe: boolean;
 }
 
 export function LoginForm({
@@ -36,6 +36,7 @@ export function LoginForm({
     const credentials: SignInCredentials = {
       email: emailRef.current?.value || "",
       password: passwordRef.current?.value || "",
+      rememberMe: true
     };
     try {
       const res = await fetch("https://api.pluton.tools/api/auth/sign-in/email", {

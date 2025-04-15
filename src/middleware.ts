@@ -5,10 +5,9 @@ import { cookies } from 'next/headers'
 type Session = typeof auth.$Infer.Session;
  
 export async function middleware(request: NextRequest) {
-	console.log((await cookies()));
 	const res = await fetch(`https://api.pluton.tools/api/auth/get-session`, {
 	  headers: {
-		cookie: (await cookies()).get("__Secure-better-auth.session_token")?.value || "",
+		cookie: await cookies()
 	  },
 	  credentials: "include",
 	});
