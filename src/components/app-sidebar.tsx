@@ -34,11 +34,6 @@ const data = {
     avatar: "",
   },
   navMain: [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: IconDashboard,
-    },
   ],
   navSecondary: [
     {
@@ -54,13 +49,18 @@ const data = {
   ],
   documents: [
     {
+      name: "Dashboard",
+      url: "/dashboard",
+      icon: IconDashboard,
+    },
+    {
       name: "Chat",
       url: "/chat",
       icon: IconMessage2,
     },
     {
       name:"Statistiques",
-      url: "/Statistiques",
+      url: "/statistiques",
       icon: IconChartBar, 
     }
   ],
@@ -129,7 +129,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain}/>
+        {/* <NavMain items={data.navMain}/> */}
         <NavDocuments items={data.documents} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>

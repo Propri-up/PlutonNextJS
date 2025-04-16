@@ -37,8 +37,8 @@ export function NavDocuments({
   const { isMobile } = useSidebar()
 
   return (
-    <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-      <SidebarGroupLabel>Fonctionnalité</SidebarGroupLabel>
+    <SidebarGroup className="group-data-[collapsible=icon]:hidden pt-5">
+      {/* <SidebarGroupLabel>Fonctionnalité</SidebarGroupLabel> */}
       <SidebarMenu>
         {items.map((item) => (
           <SidebarMenuItem key={item.name}>
