@@ -13,74 +13,16 @@ import {
   IconUser,
   IconRobot,
   IconMenu2,
-  IconX,
   IconChevronLeft,
+  IconWifi,
+  IconWifiOff,
 } from "@tabler/icons-react";
 import { useEffect, useState, useRef } from "react";
 import { cn } from "@/lib/utils";
 
-// Données mock pour simuler les conversations
-const MOCK_CONVERSATIONS: ChatConversation[] = [
-  {
-    id: "c1",
-    title: "Investissements immobiliers",
-    messages: [
-      {
-        id: "m1",
-        content:
-          "Bonjour, j'aimerais en savoir plus sur l'investissement locatif",
-        sender: "user" as "user",
-        timestamp: "2023-04-10T14:22:00Z",
-      },
-      {
-        id: "m2",
-        content:
-          "Bonjour ! Je serais ravi de vous conseiller sur l'investissement locatif. Avez-vous déjà un projet en tête ?",
-        sender: "assistant" as "assistant",
-        timestamp: "2023-04-10T14:23:00Z",
-      },
-      {
-        id: "m3",
-        content:
-          "Je cherche à investir dans une ville moyenne avec un bon rendement",
-        sender: "user",
-        timestamp: "2023-04-10T14:24:30Z",
-      },
-      {
-        id: "m4",
-        content:
-          "Excellent choix ! Les villes moyennes offrent souvent les meilleurs rendements. Je vous recommande de regarder du côté de Limoges, Orléans ou Saint-Étienne où les prix sont encore raisonnables avec des rendements entre 7 et 9%.",
-        sender: "assistant",
-        timestamp: "2023-04-10T14:26:00Z",
-      },
-    ],
-    createdAt: "2023-04-10T14:22:00Z",
-    updatedAt: "2023-04-10T14:26:00Z",
-  },
-  {
-    id: "c2",
-    title: "Assurance vie",
-    messages: [
-      {
-        id: "m1",
-        content: "Quels sont les meilleurs fonds euros actuellement ?",
-        sender: "user",
-        timestamp: "2023-04-12T09:15:00Z",
-      },
-      {
-        id: "m2",
-        content:
-          "Les meilleurs fonds euros offrent actuellement entre 2% et 3%. Je vous recommande particulièrement ceux proposés par Spirica et Suravenir qui ont bien performé l'année dernière.",
-        sender: "assistant",
-        timestamp: "2023-04-12T09:16:30Z",
-      },
-    ],
-    createdAt: "2023-04-12T09:15:00Z",
-    updatedAt: "2023-04-12T09:16:30Z",
-  },
-];
-
-// Types
+/**
+ * Types pour l'interface de chat
+ */
 interface ChatMessage {
   id: string;
   content: string;
@@ -96,58 +38,78 @@ interface ChatConversation {
   updatedAt: string;
 }
 
+// URL de l'API définie dans .env
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+/**
+ * Page de Chat - Interface de discussion avec l'assistant IA
+ * 
+ * Cette page permet de:
+ * - Créer de nouvelles conversations
+ * - Visualiser l'historique des conversations
+ * - Envoyer des messages et recevoir des réponses
+ * - Fonctionner en mode hors ligne/en ligne
+ */
 export default function ChatPage() {
+  // États principaux
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [currentChat, setCurrentChat] = useState<ChatConversation | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");
+
+  // États de l'interface
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState(true);
+
+  // Référence pour le défilement automatique
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Verrouiller le défilement de la page
+  /**
+   * Gestion du défilement et du verrouillage de la page
+   */
   useEffect(() => {
+    // Empêche le défilement du body
     document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
+  // Défilement automatique vers le dernier message
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [currentChat?.messages]);
+
+  /**
+   * Détection de l'état de la connexion internet
+   */
+  useEffect(() => {
+    const handleOnlineStatus = () => setIsOnline(navigator.onLine);
+    
+    window.addEventListener('online', handleOnlineStatus);
+    window.addEventListener('offline', handleOnlineStatus);
+    setIsOnline(navigator.onLine);
+    
     return () => {
-      document.body.style.overflow = "";
+      window.removeEventListener('online', handleOnlineStatus);
+      window.removeEventListener('offline', handleOnlineStatus);
     };
   }, []);
 
-  // Charger les conversations
-  const fetchChats = () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      setConversations(MOCK_CONVERSATIONS);
-      if (MOCK_CONVERSATIONS.length > 0 && !currentChat) {
-        switchConversation(MOCK_CONVERSATIONS[0].id);
-      }
-    } catch (err) {
-      console.error("Erreur lors du chargement des conversations:", err);
-      setError("Impossible de charger les conversations");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Récupérer les conversations au chargement
+  // Réinitialisation de l'erreur et rechargement des données quand la connexion revient
   useEffect(() => {
-    fetchChats();
-  }, []);
-
-  // Scroll vers le bas quand de nouveaux messages arrivent
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    if (isOnline && error?.includes("connexion internet")) {
+      fetchChats();
     }
-  }, [currentChat?.messages]);
+  }, [isOnline, error]);
 
-  // Fermer le sidebar en mode mobile quand on change de conversation
+  /**
+   * Gestion responsive du sidebar
+   */
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= 768) {
-        setShowSidebar(false);
+        setShowSidebar(false); // Fermer le sidebar mobile en mode desktop
       }
     };
 
@@ -155,63 +117,186 @@ export default function ChatPage() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Créer une nouvelle conversation
-  const createNewConversation = () => {
-    const newChat: ChatConversation = {
-      id: `c${Date.now()}`,
-      title: "Nouvelle conversation",
-      messages: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+  /**
+   * Récupère toutes les conversations depuis l'API
+   */
+  const fetchChats = async () => {
+    setLoading(true);
+    setError(null);
 
-    setConversations((prev) => [newChat, ...prev]);
-    setCurrentChat(newChat);
-    setShowSidebar(false);
+    try {
+      // Vérification de la connexion internet
+      if (!isOnline) {
+        throw new Error("Pas de connexion internet");
+      }
+      
+      const response = await fetch(`${API_URL}/conversations`);
+      
+      if (!response.ok) {
+        throw new Error(`Erreur serveur: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      setConversations(data);
+      
+      // Sélectionner la première conversation si aucune n'est active
+      if (data.length > 0 && !currentChat) {
+        await switchConversation(data[0].id);
+      }
+    } catch (err) {
+      console.error("Erreur lors du chargement des conversations:", err);
+      setError(err instanceof Error ? err.message : "Impossible de charger les conversations");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSendMessage = () => {
-    if (!newMessage.trim() || !currentChat) return;
+  // Chargement initial des conversations
+  useEffect(() => {
+    fetchChats();
+  }, []);
 
-    // Message de l'utilisateur
-    const userMessage: ChatMessage = {
-      id: `m${Date.now()}`,
-      content: newMessage,
-      sender: "user",
-      timestamp: new Date().toISOString(),
-    };
+  /**
+   * Crée une nouvelle conversation
+   */
+  const createNewConversation = async () => {
+    // Vérification de connexion
+    if (!isOnline) {
+      setError("Pas de connexion internet");
+      return;
+    }
 
-    // Mise à jour de la conversation
-    const updatedChat = {
-      ...currentChat,
-      messages: [...currentChat.messages, userMessage],
-      updatedAt: new Date().toISOString(),
-    };
+    try {
+      setLoading(true);
+      
+      // Appel API pour créer une conversation
+      const response = await fetch(`${API_URL}/conversations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: "Nouvelle conversation" }),
+      });
 
-    // Mise à jour de l'état
-    setCurrentChat(updatedChat);
-    setConversations((prevConvs) =>
-      prevConvs.map((conv) => (conv.id === currentChat.id ? updatedChat : conv))
-    );
+      if (!response.ok) {
+        throw new Error(`Erreur serveur: ${response.status}`);
+      }
 
-    // Réinitialiser le champ de message
-    setNewMessage("");
+      // Mise à jour de l'interface
+      const newChat = await response.json();
+      setConversations((prev) => [newChat, ...prev]);
+      setCurrentChat(newChat);
+      setShowSidebar(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible de créer une conversation");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Changer de conversation
-  const switchConversation = (id: string) => {
+  /**
+   * Change la conversation active
+   */
+  const switchConversation = async (id: string) => {
     if (id === currentChat?.id) return;
 
-    const chat = conversations.find((c) => c.id === id) || null;
-    setCurrentChat(chat);
-    setShowSidebar(false); // Fermer le sidebar en mode mobile
+    try {
+      setLoading(true);
+      
+      // Utilisation du cache si disponible
+      const cachedConversation = conversations.find(c => c.id === id);
+      if ((cachedConversation?.messages ?? []).length > 0) {
+        setCurrentChat(cachedConversation ?? null);
+        setShowSidebar(false);
+        setLoading(false);
+        return;
+      }
+      
+      // Récupération des messages depuis l'API
+      const response = await fetch(`${API_URL}/conversations/${id}`);
+      
+      if (!response.ok) {
+        throw new Error(`Erreur serveur: ${response.status}`);
+      }
+      
+      const fullConversation = await response.json();
+      
+      // Mise à jour de l'état et du cache
+      setCurrentChat(fullConversation);
+      setConversations(prevConvs => 
+        prevConvs.map(conv => conv.id === id ? fullConversation : conv)
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible de charger la conversation");
+    } finally {
+      setLoading(false);
+      setShowSidebar(false);
+    }
   };
 
-  // Formatter la date pour l'affichage
+  /**
+   * Envoie un message et récupère la réponse de l'assistant
+   */
+  const handleSendMessage = async () => {
+    // Validations
+    if (!newMessage.trim() || !currentChat || !isOnline) {
+      if (!isOnline) setError("Pas de connexion internet");
+      return;
+    }
+
+    const messageContent = newMessage.trim();
+    setNewMessage(""); // Vider l'input immédiatement
+    setSending(true);
+
+    try {
+      // Mise à jour optimiste de l'interface (afficher le message immédiatement)
+      const tempId = `temp_${Date.now()}`;
+      const userMessage: ChatMessage = {
+        id: tempId,
+        content: messageContent,
+        sender: "user",
+        timestamp: new Date().toISOString(),
+      };
+
+      // Ajout temporaire du message à l'interface
+      const updatedChat = {
+        ...currentChat,
+        messages: [...currentChat.messages, userMessage],
+      };
+      setCurrentChat(updatedChat);
+
+      // Envoi du message à l'API
+      const response = await fetch(`${API_URL}/conversations/${currentChat.id}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: messageContent }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erreur serveur: ${response.status}`);
+      }
+
+      // Mise à jour avec la réponse de l'assistant
+      const updatedConversation = await response.json();
+      
+      // Mise à jour de l'interface avec la conversation complète
+      setCurrentChat(updatedConversation);
+      setConversations((prevConvs) =>
+        prevConvs.map((conv) => (conv.id === currentChat.id ? updatedConversation : conv))
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible d'envoyer le message");
+      setNewMessage(messageContent); // Restaurer le message en cas d'erreur
+    } finally {
+      setSending(false);
+    }
+  };
+
+  /**
+   * Formatte une date pour l'affichage
+   */
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
-      if (isNaN(date.getTime())) throw new Error("Date invalide");
+      if (isNaN(date.getTime())) return "Date invalide";
 
       return date.toLocaleDateString("fr-FR", {
         day: "numeric",
@@ -219,20 +304,22 @@ export default function ChatPage() {
         hour: "2-digit",
         minute: "2-digit",
       });
-    } catch (e) {
-      console.error("Erreur de formatage de date:", e);
+    } catch {
       return "Date inconnue";
     }
   };
 
+  // Indicateurs d'état de l'interface
+  const isConversationsEmpty = conversations.length === 0;
+  const isMessagesEmpty = !currentChat?.messages?.length;
+  const isInputDisabled = loading || !currentChat || sending || !isOnline;
+
   return (
     <SidebarProvider
-      style={
-        {
-          "--sidebar-width": "calc(var(--spacing) * 72)",
-          "--header-height": "calc(var(--spacing) * 12)",
-        } as React.CSSProperties
-      }
+      style={{
+        "--sidebar-width": "calc(var(--spacing) * 72)",
+        "--header-height": "calc(var(--spacing) * 12)",
+      } as React.CSSProperties}
       className="bg-[#0A0A22] text-white h-screen"
     >
       <AppSidebar variant="inset" />
@@ -240,6 +327,7 @@ export default function ChatPage() {
         <SiteHeader />
 
         <div className="flex flex-1 h-[calc(100vh-var(--header-height))] overflow-hidden flex-col md:flex-row">
+          {/* Panneau latéral - Liste des conversations */}
           <div
             className={cn(
               "border-r border-border flex flex-col overflow-hidden transition-all duration-300",
@@ -249,6 +337,7 @@ export default function ChatPage() {
                 : "hidden"
             )}
           >
+            {/* En-tête du panneau latéral */}
             <div className="p-3 border-b border-border flex justify-between items-center shrink-0">
               <div className="flex items-center gap-2">
                 <Button
@@ -261,19 +350,28 @@ export default function ChatPage() {
                 </Button>
                 <h2 className="font-medium">Conversations</h2>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={createNewConversation}
-                disabled={loading}
-                className="h-8 w-8"
-              >
-                <IconPlus className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-1">
+                {/* Indicateur de connexion */}
+                {isOnline ? 
+                  <IconWifi className="h-4 w-4 text-green-400" /> : 
+                  <IconWifiOff className="h-4 w-4 text-red-400" />
+                }
+                {/* Bouton nouvelle conversation */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={createNewConversation}
+                  disabled={loading || !isOnline}
+                  className="h-8 w-8"
+                >
+                  <IconPlus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
+            {/* Liste des conversations */}
             <div className="flex-1 overflow-y-auto">
-              {conversations.length > 0 ? (
+              {!isConversationsEmpty ? (
                 <div className="p-2 space-y-1">
                   {conversations.map((chat) => (
                     <div
@@ -301,8 +399,10 @@ export default function ChatPage() {
             </div>
           </div>
 
+          {/* Zone principale - Messages et saisie */}
           <div className="flex flex-1 flex-col h-full overflow-hidden">
-            <div className="md:hidden p-3 border-b border-border flex items-center shrink-0">
+            {/* En-tête mobile */}
+            <div className="md:hidden p-3 border-b border-border flex items-center justify-between shrink-0">
               <Button
                 variant="ghost"
                 size="sm"
@@ -314,12 +414,19 @@ export default function ChatPage() {
                   {currentChat?.title || "Sélectionner une conversation"}
                 </span>
               </Button>
+              {/* Indicateur de connexion mobile */}
+              {isOnline ? 
+                <IconWifi className="h-4 w-4 text-green-400" /> : 
+                <IconWifiOff className="h-4 w-4 text-red-400" />
+              }
             </div>
 
+            {/* Zone d'affichage des messages */}
             <div
               className="flex-1 overflow-y-auto p-3 md:p-4"
               id="messagesContainer"
             >
+              {/* États: Chargement, Erreur, Messages */}
               {loading ? (
                 <div className="flex justify-center items-center h-full">
                   <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
@@ -331,13 +438,15 @@ export default function ChatPage() {
                     variant="outline"
                     onClick={fetchChats}
                     className="flex items-center gap-2"
+                    disabled={!isOnline && error.includes("connexion internet")}
                   >
                     <IconRefresh className="h-4 w-4" />
                     Réessayer
                   </Button>
                 </div>
-              ) : currentChat?.messages?.length ? (
+              ) : !isMessagesEmpty ? (
                 <div className="space-y-3 md:space-y-4 pb-2">
+                  {/* Liste des messages */}
                   {currentChat.messages.map((msg) => (
                     <div
                       key={msg.id}
@@ -347,6 +456,7 @@ export default function ChatPage() {
                         msg.sender === "user" ? "ml-auto flex-row-reverse" : ""
                       )}
                     >
+                      {/* Avatar de l'utilisateur ou de l'assistant */}
                       <Avatar
                         className={cn(
                           "h-7 w-7 md:h-8 md:w-8",
@@ -361,6 +471,7 @@ export default function ChatPage() {
                           )}
                         </AvatarFallback>
                       </Avatar>
+                      {/* Bulle de message */}
                       <div
                         className={cn(
                           "rounded-lg p-2 md:p-3",
@@ -378,6 +489,26 @@ export default function ChatPage() {
                       </div>
                     </div>
                   ))}
+                  
+                  {/* Indicateur de chargement pendant l'envoi */}
+                  {sending && (
+                    <div className="flex items-start gap-2 md:gap-3">
+                      <Avatar className="h-7 w-7 md:h-8 md:w-8 bg-secondary">
+                        <AvatarFallback>
+                          <IconRobot className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="rounded-lg p-2 md:p-3 bg-secondary text-secondary-foreground min-w-[60px] flex items-center justify-center">
+                        <div className="flex gap-1">
+                          <div className="w-2 h-2 rounded-full bg-current animate-pulse"></div>
+                          <div className="w-2 h-2 rounded-full bg-current animate-pulse delay-150"></div>
+                          <div className="w-2 h-2 rounded-full bg-current animate-pulse delay-300"></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Élément pour le défilement automatique */}
                   <div ref={messagesEndRef} />
                 </div>
               ) : (
@@ -391,6 +522,7 @@ export default function ChatPage() {
                         variant="outline"
                         className="mt-4"
                         onClick={createNewConversation}
+                        disabled={!isOnline}
                       >
                         Nouvelle conversation
                       </Button>
@@ -400,7 +532,14 @@ export default function ChatPage() {
               )}
             </div>
 
+            {/* Zone de saisie des messages */}
             <div className="border-t border-border p-3 md:p-4 shrink-0 bg-[#0A0A22]">
+              {/* Afficher l'erreur en cas de problème */}
+              {error && (
+                <div className="text-destructive text-xs mb-2">{error}</div>
+              )}
+              
+              {/* Formulaire d'envoi */}
               <div className="flex items-center gap-2">
                 <Input
                   placeholder="Écrivez votre message..."
@@ -412,12 +551,12 @@ export default function ChatPage() {
                       handleSendMessage();
                     }
                   }}
-                  disabled={loading || !currentChat}
+                  disabled={isInputDisabled}
                   className="flex-1 h-9 md:h-10 text-sm md:text-base"
                 />
                 <Button
                   onClick={handleSendMessage}
-                  disabled={loading || !newMessage.trim() || !currentChat}
+                  disabled={isInputDisabled || !newMessage.trim()}
                   className="h-9 md:h-10 px-3 md:px-4 flex-shrink-0"
                   size="sm"
                 >
