@@ -25,6 +25,8 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 
+import { usePathname } from "next/navigation"
+
 export function NavDocuments({
   items,
 }: {
@@ -35,30 +37,37 @@ export function NavDocuments({
   }[]
 }) {
   const { isMobile } = useSidebar()
+  const pathname = usePathname();
 
   return (
-    <SidebarGroup className="group-data-[collapsible=icon]:hidden pt-5">
-      {/* <SidebarGroupLabel>Fonctionnalité</SidebarGroupLabel> */}
+    <SidebarGroup className="group-data-[collapsible=icon]:hidden">
+      <SidebarGroupLabel>Fonctionnalité</SidebarGroupLabel>
       <SidebarMenu>
-        {items.map((item) => (
-          <SidebarMenuItem key={item.name}>
-            <SidebarMenuButton asChild>
-              <a href={item.url}>
-                <item.icon />
-                <span>{item.name}</span>
-              </a>
-            </SidebarMenuButton>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+        {items.map((item) => {
+          const isActive = pathname === item.url;
+          return (
+            <SidebarMenuItem key={item.name}>
+              <SidebarMenuButton
+                asChild
+                className={isActive ? "bg-accent text-accent-foreground" : ""}
+                aria-current={isActive ? "page" : undefined}
+              >
+                <a href={item.url}>
+                  <item.icon />
+                  <span>{item.name}</span>
+                </a>
+              </SidebarMenuButton>
+            {/* <DropdownMenu> */}
+              {/* <DropdownMenuTrigger asChild>
                 <SidebarMenuAction
                   showOnHover
                   className="data-[state=open]:bg-accent rounded-sm"
                 >
-                  <IconDots />
-                  <span className="sr-only">More</span>
-                </SidebarMenuAction>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
+                  {/* <IconDots /> */}
+                  {/* <span className="sr-only">More</span> */}
+                {/* </SidebarMenuAction>
+              </DropdownMenuTrigger> */}
+              {/* <DropdownMenuContent
                 className="w-24 rounded-lg"
                 side={isMobile ? "bottom" : "right"}
                 align={isMobile ? "end" : "start"}
@@ -76,10 +85,11 @@ export function NavDocuments({
                   <IconTrash />
                   <span>Delete</span>
                 </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              </DropdownMenuContent> */}
+            {/* </DropdownMenu> */}
           </SidebarMenuItem>
-        ))}
+        );
+        })}
         <SidebarMenuItem>
         </SidebarMenuItem>
       </SidebarMenu>

@@ -6,6 +6,7 @@ import {
   IconDatabase,
   IconFileWord,
   IconHelp,
+  IconHome2,
   IconInnerShadowTop,
   IconMessage2,
   IconPlanet,
@@ -52,6 +53,11 @@ const data = {
       name: "Dashboard",
       url: "/dashboard",
       icon: IconDashboard,
+    },
+    {
+      name: "Propriétés",
+      url: "/properties",
+      icon: IconHome2,
     },
     {
       name: "Chat",
