@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -108,7 +108,7 @@ function mapApiPropertyToProperty(api: ApiProperty): Property {
   };
 }
 
-// Property Type Icons
+// Icônes pour chaque type de propriété
 const PropertyTypeIcon = ({ type }: { type: Property["type"] }) => {
   switch (type) {
     case "apartment":
@@ -124,7 +124,7 @@ const PropertyTypeIcon = ({ type }: { type: Property["type"] }) => {
   }
 };
 
-// Property Type Labels
+// Libellés pour chaque type de propriété
 const propertyTypeLabels: Record<Property["type"], string> = {
   apartment: "Appartement",
   house: "Maison",
@@ -133,37 +133,58 @@ const propertyTypeLabels: Record<Property["type"], string> = {
 };
 
 export default function PropertiesPage() {
+  // États principaux de la page
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
-  // Modal state
+  // États pour les modales
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [detailProperty, setDetailProperty] = useState<Property | null>(null);
 
-  useEffect(() => {
-    const fetchProperties = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
-        const res = await fetch(`${apiUrl}/api/users/me/properties`, {
-          credentials: "include",
-        });
-        if (!res.ok) throw new Error("Erreur lors du chargement des propriétés");
-        const data = await res.json();
-        setProperties((data.properties || []).map(mapApiPropertyToProperty));
-      } catch (e: any) {
-        setError(e.message || "Impossible de charger les propriétés");
-      } finally {
+  // Fonction pour charger les propriétés (avec gestion d'erreur réseau et serveur)
+  const fetchProperties = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    // Vérifie la connexion internet AVANT le fetch
+    if (!navigator.onLine) {
+      setError("Pas de connexion internet. Veuillez vérifier votre réseau.");
+      setLoading(false);
+      return;
+    }
+    try {
+      // Appel à l'API pour récupérer les propriétés
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+      const res = await fetch(`${apiUrl}/api/users/me/properties`, {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        // Si l'API répond mais avec une erreur HTTP
+        setError("Erreur du serveur ou accès refusé. Veuillez réessayer plus tard.");
         setLoading(false);
+        return;
       }
-    };
-    fetchProperties();
+      const data = await res.json();
+      setProperties((data.properties || []).map(mapApiPropertyToProperty));
+    } catch (e: any) {
+      // Si le fetch échoue (API éteinte ou réseau coupé après le check)
+      if (!navigator.onLine) {
+        setError("Pas de connexion internet. Veuillez vérifier votre réseau.");
+      } else {
+        setError("Le serveur est indisponible. Veuillez réessayer plus tard.");
+      }
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // Format price to Euro
+  useEffect(() => {
+    fetchProperties();
+  }, [fetchProperties]);
+
+  // Formate le prix en euros
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('fr-FR', { 
       style: 'currency', 
@@ -172,7 +193,7 @@ export default function PropertiesPage() {
     }).format(price);
   };
 
-  // Format date
+  // Formate la date en français
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
@@ -182,23 +203,19 @@ export default function PropertiesPage() {
     }
   };
 
-  // Filter properties based on search query and active tab
-  const filteredProperties = properties
-    .filter(property => {
-      const matchesSearch = 
-        property.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        property.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        property.city.toLowerCase().includes(searchQuery.toLowerCase());
-        
-      if (activeTab === "all") return matchesSearch;
-      if (activeTab === "occupied") return matchesSearch && property.occupied;
-      if (activeTab === "vacant") return matchesSearch && !property.occupied;
-      if (activeTab === property.type) return matchesSearch;
-      
-      return false;
-    });
+  // Filtre les propriétés selon la recherche et l'onglet actif
+  const filteredProperties = properties.filter(property => {
+    const matchesSearch =
+      property.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      property.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      property.city.toLowerCase().includes(searchQuery.toLowerCase());
 
-  // Delete a property (with modal)
+    if (activeTab === "all") return matchesSearch;
+    if (activeTab === property.type) return matchesSearch;
+    return false;
+  });
+
+  // Supprime une propriété (avec confirmation via modal)
   const handleDeleteProperty = async (id: string) => {
     setDeleting(true);
     try {
@@ -232,18 +249,6 @@ export default function PropertiesPage() {
               <div>
                 <h1 className="text-2xl font-bold">Mes Propriétés</h1>
               </div>
-              
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Button className="flex items-center gap-2" size="sm">
-                  <IconPlus className="h-4 w-4" />
-                  Ajouter une propriété
-                </Button>
-                
-                <Button variant="outline" size="sm" className="flex items-center gap-2">
-                  <IconFilter className="h-4 w-4" />
-                  Filtres
-                </Button>
-              </div>
             </div>
             
             <div className="mb-6">
@@ -261,13 +266,11 @@ export default function PropertiesPage() {
               onValueChange={setActiveTab}
               className="mb-6"
             >
-              <TabsList className="grid grid-cols-3 md:grid-cols-6 mb-2">
+              <TabsList className="grid grid-cols-3 md:grid-cols-4 mb-2">
                 <TabsTrigger value="all">Tous</TabsTrigger>
                 <TabsTrigger value="apartment">Appartements</TabsTrigger>
                 <TabsTrigger value="house">Maisons</TabsTrigger>
                 <TabsTrigger value="commercial">Locaux</TabsTrigger>
-                <TabsTrigger value="occupied">Occupés</TabsTrigger>
-                <TabsTrigger value="vacant">Vacants</TabsTrigger>
               </TabsList>
               
               <TabsContent value={activeTab} className="mt-0">
@@ -276,8 +279,11 @@ export default function PropertiesPage() {
                     <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
                   </div>
                 ) : error ? (
-                  <div className="flex justify-center items-center h-40">
-                    <p className="text-red-500">{error}</p>
+                  <div className="flex flex-col justify-center items-center h-40 gap-2">
+                    <p className="text-red-500 text-center">{error}</p>
+                    <Button variant="outline" onClick={fetchProperties}>
+                      Réessayer
+                    </Button>
                   </div>
                 ) : filteredProperties.length === 0 ? (
                   <div className="flex flex-col justify-center items-center h-40">
@@ -304,9 +310,6 @@ export default function PropertiesPage() {
                             <Badge className="bg-[#FFFFF]/80 backdrop-blur-sm">
                               {propertyTypeLabels[property.type]}
                             </Badge>
-                            <Badge className={property.occupied ? "bg-green-500/80" : "bg-amber-500/80"}>
-                              {property.occupied ? 'Occupé' : 'Vacant'}
-                            </Badge>
                           </div>
                         </div>
                         
@@ -322,6 +325,10 @@ export default function PropertiesPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
+                                <DropdownMenuItem className="flex items-center gap-2" onClick={() => setDetailProperty(property)}>
+                                  <IconHome className="h-4 w-4" />
+                                  Détails
+                                </DropdownMenuItem>
                                 <DropdownMenuItem className="flex items-center gap-2">
                                   <IconEdit className="h-4 w-4" />
                                   Éditer
@@ -373,9 +380,6 @@ export default function PropertiesPage() {
                           <div className="text-lg font-semibold">
                             {formatPrice(property.price)}
                           </div>
-                          <div className="text-xs text-muted-foreground">
-                            Ajouté le {formatDate(property.createdAt)}
-                          </div>
                         </CardFooter>
                       </Card>
                     ))}
@@ -395,6 +399,29 @@ export default function PropertiesPage() {
                       <Button variant="destructive" onClick={() => deleteId && handleDeleteProperty(deleteId)} disabled={deleting}>
                         {deleting ? "Suppression..." : "Supprimer"}
                       </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+                {/* Property details modal */}
+                <Dialog open={!!detailProperty} onOpenChange={(open) => !open && setDetailProperty(null)}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Détails de la propriété</DialogTitle>
+                    </DialogHeader>
+                    {detailProperty && (
+                      <div className="space-y-2">
+                        <div className="font-semibold text-lg">{detailProperty.title}</div>
+                        <div><span className="font-medium">Type:</span> {propertyTypeLabels[detailProperty.type]}</div>
+                        <div><span className="font-medium">Adresse:</span> {detailProperty.address}, {detailProperty.postalCode} {detailProperty.city}</div>
+                        <div><span className="font-medium">Surface:</span> {detailProperty.surface} m²</div>
+                        <div><span className="font-medium">Pièces:</span> {detailProperty.rooms}</div>
+                        <div><span className="font-medium">Locataires:</span> {detailProperty.tenants}</div>
+                        <div><span className="font-medium">Prix:</span> {formatPrice(detailProperty.price)}</div>
+                        <div><span className="font-medium">Rendement:</span> {detailProperty.rentalYield.toFixed(1)}%</div>
+                      </div>
+                    )}
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setDetailProperty(null)}>Fermer</Button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
