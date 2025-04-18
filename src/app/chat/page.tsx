@@ -24,18 +24,27 @@ import { cn } from "@/lib/utils";
  * Types pour l'interface de chat
  */
 interface ChatMessage {
-  id: string;
+  id: number;
   content: string;
-  sender: "user" | "assistant";
-  timestamp: string;
+  sendDate: string;
+  chatId: number;
+  userId: string;
+  isRead: boolean;
+}
+
+interface ChatParticipant {
+  id: number;
+  chatId: number;
+  userId: string;
 }
 
 interface ChatConversation {
-  id: string;
-  title: string;
-  messages: ChatMessage[];
-  createdAt: string;
-  updatedAt: string;
+  id: number;
+  chatType: string;
+  propertyId: number;
+  participants: ChatParticipant[];
+  lastMessage?: ChatMessage;
+  messages?: ChatMessage[];
 }
 
 // URL de l'API définie dans .env
@@ -43,7 +52,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 /**
  * Page de Chat - Interface de discussion avec l'assistant IA
- * 
+ *
  * Cette page permet de:
  * - Créer de nouvelles conversations
  * - Visualiser l'historique des conversations
@@ -55,6 +64,7 @@ export default function ChatPage() {
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [currentChat, setCurrentChat] = useState<ChatConversation | null>(null);
   const [newMessage, setNewMessage] = useState("");
+  const [currentUserId, setCurrentUserId] = useState<string>("");
 
   // États de l'interface
   const [loading, setLoading] = useState(true);
@@ -66,13 +76,35 @@ export default function ChatPage() {
   // Référence pour le défilement automatique
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Récupération de l'ID de l'utilisateur actuel
+  // (pour l'affichage des messages)
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/auth/me`, {
+          credentials: "include",
+        });
+        if (res.ok) {
+          const userData = await res.json();
+          setCurrentUserId(userData.id);
+        }
+      } catch (err) {
+        console.error("Error fetching current user:", err);
+      }
+    };
+
+    getCurrentUser();
+  }, []);
+
   /**
    * Gestion du défilement et du verrouillage de la page
    */
   useEffect(() => {
     // Empêche le défilement du body
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = ""; };
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, []);
 
   // Défilement automatique vers le dernier message
@@ -85,14 +117,14 @@ export default function ChatPage() {
    */
   useEffect(() => {
     const handleOnlineStatus = () => setIsOnline(navigator.onLine);
-    
-    window.addEventListener('online', handleOnlineStatus);
-    window.addEventListener('offline', handleOnlineStatus);
+
+    window.addEventListener("online", handleOnlineStatus);
+    window.addEventListener("offline", handleOnlineStatus);
     setIsOnline(navigator.onLine);
-    
+
     return () => {
-      window.removeEventListener('online', handleOnlineStatus);
-      window.removeEventListener('offline', handleOnlineStatus);
+      window.removeEventListener("online", handleOnlineStatus);
+      window.removeEventListener("offline", handleOnlineStatus);
     };
   }, []);
 
@@ -129,23 +161,29 @@ export default function ChatPage() {
       if (!isOnline) {
         throw new Error("Pas de connexion internet");
       }
-      
-      const response = await fetch(`${API_URL}/conversations`);
-      
+
+      const response = await fetch(`${API_URL}/api/chat/list`, {
+        credentials: "include",
+      });
+
       if (!response.ok) {
         throw new Error(`Erreur serveur: ${response.status}`);
       }
-      
+
       const data = await response.json();
       setConversations(data);
-      
+
       // Sélectionner la première conversation si aucune n'est active
       if (data.length > 0 && !currentChat) {
         await switchConversation(data[0].id);
       }
     } catch (err) {
       console.error("Erreur lors du chargement des conversations:", err);
-      setError(err instanceof Error ? err.message : "Impossible de charger les conversations");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Impossible de charger les conversations"
+      );
     } finally {
       setLoading(false);
     }
@@ -168,12 +206,17 @@ export default function ChatPage() {
 
     try {
       setLoading(true);
-      
-      // Appel API pour créer une conversation
-      const response = await fetch(`${API_URL}/conversations`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: "Nouvelle conversation" }),
+
+      // Appel API pour créer une conversation - using the propertyId 0 as default
+      const response = await fetch(`${API_URL}/api/chat/create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          chatType: "property",
+          propertyId: 0,
+          participantIds: [],
+        }),
       });
 
       if (!response.ok) {
@@ -186,7 +229,11 @@ export default function ChatPage() {
       setCurrentChat(newChat);
       setShowSidebar(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible de créer une conversation");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Impossible de créer une conversation"
+      );
     } finally {
       setLoading(false);
     }
@@ -195,37 +242,38 @@ export default function ChatPage() {
   /**
    * Change la conversation active
    */
-  const switchConversation = async (id: string) => {
+  const switchConversation = async (id: number) => {
     if (id === currentChat?.id) return;
 
     try {
       setLoading(true);
-      
+
       // Utilisation du cache si disponible
-      const cachedConversation = conversations.find(c => c.id === id);
-      if ((cachedConversation?.messages ?? []).length > 0) {
-        setCurrentChat(cachedConversation ?? null);
-        setShowSidebar(false);
-        setLoading(false);
-        return;
-      }
-      
-      // Récupération des messages depuis l'API
-      const response = await fetch(`${API_URL}/conversations/${id}`);
-      
+      const response = await fetch(`${API_URL}/api/chat/${id}`, {
+        credentials: "include",
+      });
+
       if (!response.ok) {
         throw new Error(`Erreur serveur: ${response.status}`);
       }
-      
+
       const fullConversation = await response.json();
-      
+
       // Mise à jour de l'état et du cache
       setCurrentChat(fullConversation);
-      setConversations(prevConvs => 
-        prevConvs.map(conv => conv.id === id ? fullConversation : conv)
+      setConversations((prevConvs) =>
+        prevConvs.map((conv) =>
+          conv.id === id
+            ? { ...conv, messages: fullConversation.messages }
+            : conv
+        )
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible de charger la conversation");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Impossible de charger la conversation"
+      );
     } finally {
       setLoading(false);
       setShowSidebar(false);
@@ -248,42 +296,45 @@ export default function ChatPage() {
 
     try {
       // Mise à jour optimiste de l'interface (afficher le message immédiatement)
-      const tempId = `temp_${Date.now()}`;
+      const tempId = Date.now();
       const userMessage: ChatMessage = {
         id: tempId,
         content: messageContent,
-        sender: "user",
-        timestamp: new Date().toISOString(),
+        sendDate: new Date().toISOString(),
+        chatId: currentChat.id,
+        userId: "", // Will be filled by the server
+        isRead: false,
       };
 
       // Ajout temporaire du message à l'interface
       const updatedChat = {
         ...currentChat,
-        messages: [...currentChat.messages, userMessage],
+        messages: [...(currentChat.messages || []), userMessage],
       };
       setCurrentChat(updatedChat);
 
-      // Envoi du message à l'API
-      const response = await fetch(`${API_URL}/conversations/${currentChat.id}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: messageContent }),
-      });
+      // Envoi du message à l'API - Adjust to your actual endpoint
+      const response = await fetch(
+        `${API_URL}/api/chat/${currentChat.id}/message`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ content: messageContent }),
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`Erreur serveur: ${response.status}`);
       }
 
       // Mise à jour avec la réponse de l'assistant
-      const updatedConversation = await response.json();
-      
-      // Mise à jour de l'interface avec la conversation complète
-      setCurrentChat(updatedConversation);
-      setConversations((prevConvs) =>
-        prevConvs.map((conv) => (conv.id === currentChat.id ? updatedConversation : conv))
-      );
+      // Reload the entire conversation to get the latest messages
+      await switchConversation(currentChat.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible d'envoyer le message");
+      setError(
+        err instanceof Error ? err.message : "Impossible d'envoyer le message"
+      );
       setNewMessage(messageContent); // Restaurer le message en cas d'erreur
     } finally {
       setSending(false);
@@ -316,10 +367,12 @@ export default function ChatPage() {
 
   return (
     <SidebarProvider
-      style={{
-        "--sidebar-width": "calc(var(--spacing) * 72)",
-        "--header-height": "calc(var(--spacing) * 12)",
-      } as React.CSSProperties}
+      style={
+        {
+          "--sidebar-width": "calc(var(--spacing) * 72)",
+          "--header-height": "calc(var(--spacing) * 12)",
+        } as React.CSSProperties
+      }
       className="bg-[#0A0A22] text-white h-screen"
     >
       <AppSidebar variant="inset" />
@@ -351,11 +404,6 @@ export default function ChatPage() {
                 <h2 className="font-medium">Conversations</h2>
               </div>
               <div className="flex items-center gap-1">
-                {/* Indicateur de connexion */}
-                {isOnline ? 
-                  <IconWifi className="h-4 w-4 text-green-400" /> : 
-                  <IconWifiOff className="h-4 w-4 text-red-400" />
-                }
                 {/* Bouton nouvelle conversation */}
                 <Button
                   variant="ghost"
@@ -384,9 +432,23 @@ export default function ChatPage() {
                       )}
                       onClick={() => switchConversation(chat.id)}
                     >
-                      <div className="font-medium truncate">{chat.title}</div>
+                      <div className="font-medium truncate">
+                        {chat.chatType === "property"
+                          ? `Propriété #${chat.propertyId}`
+                          : "Conversation"}
+                      </div>
                       <div className="text-xs opacity-75 truncate">
-                        {formatDate(chat.updatedAt)}
+                        {chat.lastMessage ? (
+                          <>
+                            <span>{formatDate(chat.lastMessage.sendDate)}</span>
+                            <span className="ml-1">•</span>
+                            <span className="ml-1 truncate">
+                              {chat.lastMessage.content}
+                            </span>
+                          </>
+                        ) : (
+                          "Nouvelle conversation"
+                        )}
                       </div>
                     </div>
                   ))}
@@ -411,14 +473,19 @@ export default function ChatPage() {
               >
                 <IconMenu2 className="h-4 w-4" />
                 <span className="truncate">
-                  {currentChat?.title || "Sélectionner une conversation"}
+                  {currentChat
+                    ? currentChat.chatType === "property"
+                      ? `Propriété #${currentChat.propertyId}`
+                      : "Conversation"
+                    : "Sélectionner une conversation"}
                 </span>
               </Button>
               {/* Indicateur de connexion mobile */}
-              {isOnline ? 
-                <IconWifi className="h-4 w-4 text-green-400" /> : 
+              {isOnline ? (
+                <IconWifi className="h-4 w-4 text-green-400" />
+              ) : (
                 <IconWifiOff className="h-4 w-4 text-red-400" />
-              }
+              )}
             </div>
 
             {/* Zone d'affichage des messages */}
@@ -447,24 +514,28 @@ export default function ChatPage() {
               ) : !isMessagesEmpty ? (
                 <div className="space-y-3 md:space-y-4 pb-2">
                   {/* Liste des messages */}
-                  {currentChat.messages.map((msg) => (
+                  {currentChat.messages?.map((msg) => (
                     <div
                       key={msg.id}
                       className={cn(
                         "flex items-start gap-2 md:gap-3",
-                        "max-w-[85%] md:max-w-[80%]",
-                        msg.sender === "user" ? "ml-auto flex-row-reverse" : ""
+                        msg.userId === currentUserId
+                          ? "ml-auto flex-row-reverse"
+                          : ""
                       )}
                     >
                       {/* Avatar de l'utilisateur ou de l'assistant */}
                       <Avatar
                         className={cn(
                           "h-7 w-7 md:h-8 md:w-8",
-                          msg.sender === "user" ? "bg-primary" : "bg-secondary"
+                          msg.userId === currentUserId
+                            ? "bg-primary"
+                            : "bg-secondary"
                         )}
                       >
                         <AvatarFallback>
-                          {msg.sender === "user" ? (
+                          {/* And here as well: */}
+                          {msg.userId === currentUserId ? (
                             <IconUser className="h-3.5 w-3.5 md:h-4 md:w-4" />
                           ) : (
                             <IconRobot className="h-3.5 w-3.5 md:h-4 md:w-4" />
@@ -475,7 +546,7 @@ export default function ChatPage() {
                       <div
                         className={cn(
                           "rounded-lg p-2 md:p-3",
-                          msg.sender === "user"
+                          msg.userId === currentUserId
                             ? "bg-primary text-primary-foreground"
                             : "bg-secondary text-secondary-foreground"
                         )}
@@ -484,12 +555,12 @@ export default function ChatPage() {
                           {msg.content}
                         </p>
                         <p className="text-[10px] md:text-xs opacity-75 mt-1">
-                          {formatDate(msg.timestamp)}
+                          {formatDate(msg.sendDate)}
                         </p>
                       </div>
                     </div>
                   ))}
-                  
+
                   {/* Indicateur de chargement pendant l'envoi */}
                   {sending && (
                     <div className="flex items-start gap-2 md:gap-3">
@@ -507,7 +578,7 @@ export default function ChatPage() {
                       </div>
                     </div>
                   )}
-                  
+
                   {/* Élément pour le défilement automatique */}
                   <div ref={messagesEndRef} />
                 </div>
@@ -538,7 +609,7 @@ export default function ChatPage() {
               {error && (
                 <div className="text-destructive text-xs mb-2">{error}</div>
               )}
-              
+
               {/* Formulaire d'envoi */}
               <div className="flex items-center gap-2">
                 <Input
