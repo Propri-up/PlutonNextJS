@@ -35,5 +35,6 @@ export async function middleware(request: NextRequest) {
 // Configuration du middleware :
 // On applique ce middleware uniquement sur les routes /dashboard et /chat
 export const config = {
-  matcher: ["/dashboard", "/chat"],
+  matcher: ["/dashboard", "/chat", "/statistiques", "/proprietes"],
 };
+
