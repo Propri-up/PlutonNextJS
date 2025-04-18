@@ -36,6 +36,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 // Property Types
 interface Property {
@@ -56,111 +57,56 @@ interface Property {
   imageUrl: string;
 }
 
-// Mock Data
-const MOCK_PROPERTIES: Property[] = [
-  {
-    id: "prop1",
-    title: "Appartement T3 Centre-ville",
-    type: "apartment",
-    address: "15 rue des Lilas",
-    city: "Bordeaux",
-    postalCode: "33000",
-    price: 230000,
-    surface: 68,
-    rooms: 3,
-    tenants: 2,
-    occupied: true,
-    rentalYield: 5.2,
-    createdAt: "2022-05-15T10:30:00Z",
-    updatedAt: "2023-11-20T14:45:00Z",
-    imageUrl: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8YXBhcnRtZW50fGVufDB8fDB8fHww&auto=format&fit=crop&w=500&q=60",
-  },
-  {
-    id: "prop2",
-    title: "Maison avec jardin",
-    type: "house",
-    address: "8 allée des Chênes",
-    city: "Toulouse",
-    postalCode: "31000",
-    price: 320000,
-    surface: 110,
-    rooms: 5,
-    tenants: 0,
-    occupied: false,
-    rentalYield: 4.1,
-    createdAt: "2021-09-03T09:15:00Z",
-    updatedAt: "2023-10-12T11:20:00Z",
-    imageUrl: "https://images.unsplash.com/photo-1568605114967-8130f3a36994?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8aG91c2V8ZW58MHx8MHx8fDA%3D&auto=format&fit=crop&w=500&q=60",
-  },
-  {
-    id: "prop3",
-    title: "Local commercial",
-    type: "commercial",
-    address: "45 avenue Jean Jaurès",
-    city: "Lyon",
-    postalCode: "69000",
-    price: 185000,
-    surface: 75,
-    rooms: 2,
-    tenants: 1,
-    occupied: true,
-    rentalYield: 6.8,
-    createdAt: "2023-02-18T14:30:00Z",
-    updatedAt: "2023-08-05T16:40:00Z",
-    imageUrl: "https://images.unsplash.com/photo-1497366754035-f200968a6e72?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8b2ZmaWNlfGVufDB8fDB8fHww&auto=format&fit=crop&w=500&q=60",
-  },
-  {
-    id: "prop4",
-    title: "Studio étudiant",
-    type: "apartment",
-    address: "12 rue des Écoles",
-    city: "Montpellier",
-    postalCode: "34000",
-    price: 98000,
-    surface: 28,
-    rooms: 1,
-    tenants: 1,
-    occupied: true,
-    rentalYield: 7.2,
-    createdAt: "2022-11-25T08:20:00Z",
-    updatedAt: "2023-07-14T09:35:00Z",
-    imageUrl: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTd8fHN0dWRpb3xlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&w=500&q=60",
-  },
-  {
-    id: "prop5",
-    title: "Terrain constructible",
-    type: "land",
-    address: "Route de la Plage",
-    city: "Biarritz",
-    postalCode: "64200",
-    price: 250000,
-    surface: 500,
-    rooms: 0,
-    tenants: 0,
-    occupied: false,
-    rentalYield: 0,
-    createdAt: "2023-01-08T11:10:00Z",
-    updatedAt: "2023-05-22T13:25:00Z",
-    imageUrl: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8bGFuZHxlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&w=500&q=60",
-  },
-  {
-    id: "prop6",
-    title: "Appartement T2 Neuf",
-    type: "apartment",
-    address: "3 rue Victor Hugo",
-    city: "Nantes",
-    postalCode: "44000",
-    price: 175000,
-    surface: 45,
-    rooms: 2,
-    tenants: 0,
-    occupied: false,
-    rentalYield: 4.8,
-    createdAt: "2023-03-12T15:40:00Z",
-    updatedAt: "2023-09-08T10:15:00Z",
-    imageUrl: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTF8fGFwYXJ0bWVudHxlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&w=500&q=60",
-  },
-];
+// API Property Type (from Pluton API)
+interface ApiProperty {
+  id: number;
+  address: string;
+  surfaceArea: number;
+  rent: number;
+  numberOfBedrooms?: number;
+  estimatedCharges?: number;
+  propertyTypeId: number;
+  ownerId: string;
+}
+
+// Map API property type to UI property type
+function mapApiPropertyToProperty(api: ApiProperty): Property {
+  // Map propertyTypeId to type string
+  let type: Property["type"] = "apartment";
+  switch (api.propertyTypeId) {
+    case 1:
+      type = "apartment";
+      break;
+    case 2:
+      type = "house";
+      break;
+    case 3:
+      type = "commercial";
+      break;
+    case 4:
+      type = "land";
+      break;
+    default:
+      type = "apartment";
+  }
+  return {
+    id: String(api.id),
+    title: api.address, // No title in API, fallback to address
+    type,
+    address: api.address,
+    city: "", // Not provided by API
+    postalCode: "", // Not provided by API
+    price: api.rent,
+    surface: api.surfaceArea,
+    rooms: api.numberOfBedrooms || 0,
+    tenants: 0, // Not provided by API
+    occupied: false, // Not provided by API
+    rentalYield: 0, // Not provided by API
+    createdAt: "", // Not provided by API
+    updatedAt: "", // Not provided by API
+    imageUrl: "", // Not provided by API
+  };
+}
 
 // Property Type Icons
 const PropertyTypeIcon = ({ type }: { type: Property["type"] }) => {
@@ -192,23 +138,29 @@ export default function PropertiesPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
+  // Modal state
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  // Load properties data
   useEffect(() => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // Simulate API call with timeout
-      setTimeout(() => {
-        setProperties(MOCK_PROPERTIES);
+    const fetchProperties = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+        const res = await fetch(`${apiUrl}/api/users/me/properties`, {
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Erreur lors du chargement des propriétés");
+        const data = await res.json();
+        setProperties((data.properties || []).map(mapApiPropertyToProperty));
+      } catch (e: any) {
+        setError(e.message || "Impossible de charger les propriétés");
+      } finally {
         setLoading(false);
-      }, 800);
-    } catch (err) {
-      console.error("Error loading properties:", err);
-      setError("Impossible de charger les propriétés");
-      setLoading(false);
-    }
+      }
+    };
+    fetchProperties();
   }, []);
 
   // Format price to Euro
@@ -246,10 +198,22 @@ export default function PropertiesPage() {
       return false;
     });
 
-  // Delete a property
-  const handleDeleteProperty = (id: string) => {
-    if (confirm("Êtes-vous sûr de vouloir supprimer cette propriété ?")) {
-      setProperties(properties.filter(property => property.id !== id));
+  // Delete a property (with modal)
+  const handleDeleteProperty = async (id: string) => {
+    setDeleting(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+      const res = await fetch(`${apiUrl}/api/properties/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Erreur lors de la suppression");
+      setProperties((prev) => prev.filter((property) => property.id !== id));
+      setDeleteId(null);
+    } catch (e: any) {
+      alert(e.message || "Erreur lors de la suppression");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -364,7 +328,7 @@ export default function PropertiesPage() {
                                 </DropdownMenuItem>
                                 <DropdownMenuItem 
                                   className="flex items-center gap-2 text-red-500 focus:text-red-500"
-                                  onClick={() => handleDeleteProperty(property.id)}
+                                  onClick={() => setDeleteId(property.id)}
                                 >
                                   <IconTrash className="h-4 w-4" />
                                   Supprimer
@@ -417,6 +381,23 @@ export default function PropertiesPage() {
                     ))}
                   </div>
                 )}
+                {/* Delete confirmation modal */}
+                <Dialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Confirmer la suppression</DialogTitle>
+                    </DialogHeader>
+                    <div>Êtes-vous sûr de vouloir supprimer cette propriété ? Cette action est irréversible.</div>
+                    <DialogFooter className="gap-2">
+                      <Button variant="outline" onClick={() => setDeleteId(null)} disabled={deleting}>
+                        Annuler
+                      </Button>
+                      <Button variant="destructive" onClick={() => deleteId && handleDeleteProperty(deleteId)} disabled={deleting}>
+                        {deleting ? "Suppression..." : "Supprimer"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </TabsContent>
             </Tabs>
           </div>
