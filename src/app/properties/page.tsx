@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -17,13 +17,13 @@ import {
   IconEdit,
   IconTrash,
 } from "@tabler/icons-react";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +36,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 // Property Types
 interface Property {
@@ -108,7 +114,7 @@ function mapApiPropertyToProperty(api: ApiProperty): Property {
   };
 }
 
-// Property Type Icons
+// Icônes pour chaque type de propriété
 const PropertyTypeIcon = ({ type }: { type: Property["type"] }) => {
   switch (type) {
     case "apartment":
@@ -124,7 +130,7 @@ const PropertyTypeIcon = ({ type }: { type: Property["type"] }) => {
   }
 };
 
-// Property Type Labels
+// Libellés pour chaque type de propriété
 const propertyTypeLabels: Record<Property["type"], string> = {
   apartment: "Appartement",
   house: "Maison",
@@ -133,72 +139,99 @@ const propertyTypeLabels: Record<Property["type"], string> = {
 };
 
 export default function PropertiesPage() {
+  // États principaux de la page
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
-  // Modal state
+  // États pour les modales
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [detailProperty, setDetailProperty] = useState<Property | null>(null);
+  ``;
 
-  useEffect(() => {
-    const fetchProperties = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
-        const res = await fetch(`${apiUrl}/api/users/me/properties`, {
-          credentials: "include",
-        });
-        if (!res.ok) throw new Error("Erreur lors du chargement des propriétés");
-        const data = await res.json();
-        setProperties((data.properties || []).map(mapApiPropertyToProperty));
-      } catch (e: any) {
-        setError(e.message || "Impossible de charger les propriétés");
-      } finally {
+  // Fonction pour charger les propriétés (avec gestion d'erreur réseau et serveur)
+  const fetchProperties = useCallback(async () => {
+    setLoading(true); // On indique que le chargement commence (affiche le loader)
+    setError(null); // On réinitialise l'éventuelle erreur précédente
+
+    // Vérifie la connexion internet AVANT de lancer la requête
+    if (!navigator.onLine) {
+      setError("Pas de connexion internet. Veuillez vérifier votre réseau.");
+      setLoading(false);
+      return; // On arrête la fonction si pas de connexion
+    }
+
+    try {
+      // Construction de l'URL de l'API à partir de la variable d'environnement
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+      // Appel à l'API pour récupérer les propriétés de l'utilisateur connecté
+      const res = await fetch(`${apiUrl}/api/users/me/properties`, {
+        credentials: "include", // On envoie les cookies pour l'authentification
+      });
+
+      // Si l'API répond mais avec une erreur HTTP (ex: 401, 500, etc.)
+      if (!res.ok) {
+        setError(
+          "Erreur du serveur ou accès refusé. Veuillez réessayer plus tard."
+        );
         setLoading(false);
+        return;
       }
-    };
-    fetchProperties();
+
+      // On parse la réponse JSON
+      const data = await res.json();
+      // On transforme les données API en objets Property pour l'UI
+      setProperties((data.properties || []).map(mapApiPropertyToProperty));
+    } catch (e: any) {
+      // Si le fetch échoue (API éteinte, problème réseau après le check, etc.)
+      if (!navigator.onLine) {
+        setError("Pas de connexion internet. Veuillez vérifier votre réseau.");
+      } else {
+        setError("Le serveur est indisponible. Veuillez réessayer plus tard.");
+      }
+    } finally {
+      setLoading(false); // On indique que le chargement est terminé (cache le loader)
+    }
   }, []);
 
-  // Format price to Euro
+  useEffect(() => {
+    fetchProperties();
+  }, [fetchProperties]);
+
+  // Formate le prix en euros
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('fr-FR', { 
-      style: 'currency', 
-      currency: 'EUR',
-      maximumFractionDigits: 0
+    return new Intl.NumberFormat("fr-FR", {
+      style: "currency",
+      currency: "EUR",
+      maximumFractionDigits: 0,
     }).format(price);
   };
 
-  // Format date
+  // Formate la date en français
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString('fr-FR');
+      return date.toLocaleDateString("fr-FR");
     } catch (e) {
       return "Date inconnue";
     }
   };
 
-  // Filter properties based on search query and active tab
-  const filteredProperties = properties
-    .filter(property => {
-      const matchesSearch = 
-        property.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        property.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        property.city.toLowerCase().includes(searchQuery.toLowerCase());
-        
-      if (activeTab === "all") return matchesSearch;
-      if (activeTab === "occupied") return matchesSearch && property.occupied;
-      if (activeTab === "vacant") return matchesSearch && !property.occupied;
-      if (activeTab === property.type) return matchesSearch;
-      
-      return false;
-    });
+  // Filtre les propriétés selon la recherche et l'onglet actif
+  const filteredProperties = properties.filter((property) => {
+    const matchesSearch =
+      property.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      property.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      property.city.toLowerCase().includes(searchQuery.toLowerCase());
 
-  // Delete a property (with modal)
+    if (activeTab === "all") return matchesSearch;
+    if (activeTab === property.type) return matchesSearch;
+    return false;
+  });
+
+  // Supprime une propriété (avec confirmation via modal)
   const handleDeleteProperty = async (id: string) => {
     setDeleting(true);
     try {
@@ -219,72 +252,68 @@ export default function PropertiesPage() {
 
   return (
     <SidebarProvider
-      style={{ "--sidebar-width": "calc(var(--spacing) * 72)", "--header-height": "calc(var(--spacing) * 12)" } as React.CSSProperties}
+      style={
+        {
+          "--sidebar-width": "calc(var(--spacing) * 72)",
+          "--header-height": "calc(var(--spacing) * 12)",
+        } as React.CSSProperties
+      }
       className="bg-[#0A0A22] text-white h-screen"
     >
       <AppSidebar variant="inset" />
       <SidebarInset className="h-screen flex flex-col overflow-hidden">
         <SiteHeader />
-        
+
         <div className="flex-1 overflow-y-auto p-4 md:p-6">
           <div className="max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
               <div>
                 <h1 className="text-2xl font-bold">Mes Propriétés</h1>
               </div>
-              
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Button className="flex items-center gap-2" size="sm">
-                  <IconPlus className="h-4 w-4" />
-                  Ajouter une propriété
-                </Button>
-                
-                <Button variant="outline" size="sm" className="flex items-center gap-2">
-                  <IconFilter className="h-4 w-4" />
-                  Filtres
-                </Button>
-              </div>
             </div>
-            
+
             <div className="mb-6">
-              <Input 
-                placeholder="Rechercher par titre, adresse ou ville..." 
+              <Input
+                placeholder="Rechercher par titre, adresse ou ville..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="max-w-md"
               />
             </div>
-            
-            <Tabs 
-              defaultValue="all" 
+
+            <Tabs
+              defaultValue="all"
               value={activeTab}
               onValueChange={setActiveTab}
               className="mb-6"
             >
-              <TabsList className="grid grid-cols-3 md:grid-cols-6 mb-2">
+              <TabsList className="grid grid-cols-3 md:grid-cols-4 mb-2">
                 <TabsTrigger value="all">Tous</TabsTrigger>
                 <TabsTrigger value="apartment">Appartements</TabsTrigger>
                 <TabsTrigger value="house">Maisons</TabsTrigger>
                 <TabsTrigger value="commercial">Locaux</TabsTrigger>
-                <TabsTrigger value="occupied">Occupés</TabsTrigger>
-                <TabsTrigger value="vacant">Vacants</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value={activeTab} className="mt-0">
                 {loading ? (
                   <div className="flex justify-center items-center h-40">
                     <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
                   </div>
                 ) : error ? (
-                  <div className="flex justify-center items-center h-40">
-                    <p className="text-red-500">{error}</p>
+                  <div className="flex flex-col justify-center items-center h-40 gap-2">
+                    <p className="text-red-500 text-center">{error}</p>
+                    <Button variant="outline" onClick={fetchProperties}>
+                      Réessayer
+                    </Button>
                   </div>
                 ) : filteredProperties.length === 0 ? (
                   <div className="flex flex-col justify-center items-center h-40">
-                    <p className="text-muted-foreground mb-2">Aucune propriété trouvée</p>
+                    <p className="text-muted-foreground mb-2">
+                      Aucune propriété trouvée
+                    </p>
                     {searchQuery && (
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         onClick={() => setSearchQuery("")}
                         size="sm"
                       >
@@ -295,21 +324,23 @@ export default function PropertiesPage() {
                 ) : (
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {filteredProperties.map((property) => (
-                      <Card key={property.id} className="overflow-hidden transition-all duration-200 hover:shadow-md">
-                        <div 
+                      <Card
+                        key={property.id}
+                        className="overflow-hidden transition-all duration-200 hover:shadow-md"
+                      >
+                        <div
                           className="h-48 w-full bg-cover bg-center"
-                          style={{ backgroundImage: `url(${property.imageUrl})` }}
+                          style={{
+                            backgroundImage: `url(${property.imageUrl})`,
+                          }}
                         >
                           <div className="p-2 flex justify-between">
                             <Badge className="bg-[#FFFFF]/80 backdrop-blur-sm">
                               {propertyTypeLabels[property.type]}
                             </Badge>
-                            <Badge className={property.occupied ? "bg-green-500/80" : "bg-amber-500/80"}>
-                              {property.occupied ? 'Occupé' : 'Vacant'}
-                            </Badge>
                           </div>
                         </div>
-                        
+
                         <CardHeader className="pb-2">
                           <div className="flex justify-between items-start">
                             <CardTitle className="text-lg line-clamp-1">
@@ -317,16 +348,27 @@ export default function PropertiesPage() {
                             </CardTitle>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                >
                                   <IconChevronRight className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  className="flex items-center gap-2"
+                                  onClick={() => setDetailProperty(property)}
+                                >
+                                  <IconHome className="h-4 w-4" />
+                                  Détails
+                                </DropdownMenuItem>
                                 <DropdownMenuItem className="flex items-center gap-2">
                                   <IconEdit className="h-4 w-4" />
                                   Éditer
                                 </DropdownMenuItem>
-                                <DropdownMenuItem 
+                                <DropdownMenuItem
                                   className="flex items-center gap-2 text-red-500 focus:text-red-500"
                                   onClick={() => setDeleteId(property.id)}
                                 >
@@ -339,42 +381,56 @@ export default function PropertiesPage() {
                           <CardDescription className="flex items-center gap-1 mt-1">
                             <IconMapPin className="h-3.5 w-3.5" />
                             <span className="truncate">
-                              {property.address}, {property.postalCode} {property.city}
+                              {property.address}, {property.postalCode}{" "}
+                              {property.city}
                             </span>
                           </CardDescription>
                         </CardHeader>
-                        
+
                         <CardContent className="pb-2">
                           <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
                             <div className="flex items-center gap-1">
-                              <span className="text-muted-foreground">Surface:</span>
-                              <span className="font-medium">{property.surface} m²</span>
+                              <span className="text-muted-foreground">
+                                Surface:
+                              </span>
+                              <span className="font-medium">
+                                {property.surface} m²
+                              </span>
                             </div>
                             <div className="flex items-center gap-1">
-                              <span className="text-muted-foreground">Pièces:</span>
-                              <span className="font-medium">{property.rooms}</span>
+                              <span className="text-muted-foreground">
+                                Pièces:
+                              </span>
+                              <span className="font-medium">
+                                {property.rooms}
+                              </span>
                             </div>
                             {property.type !== "land" && (
                               <>
                                 <div className="flex items-center gap-1">
-                                  <span className="text-muted-foreground">Locataires:</span>
-                                  <span className="font-medium">{property.tenants}</span>
+                                  <span className="text-muted-foreground">
+                                    Locataires:
+                                  </span>
+                                  <span className="font-medium">
+                                    {property.tenants}
+                                  </span>
                                 </div>
                                 <div className="flex items-center gap-1">
-                                  <span className="text-muted-foreground">Rendement:</span>
-                                  <span className="font-medium">{property.rentalYield.toFixed(1)}%</span>
+                                  <span className="text-muted-foreground">
+                                    Rendement:
+                                  </span>
+                                  <span className="font-medium">
+                                    {property.rentalYield.toFixed(1)}%
+                                  </span>
                                 </div>
                               </>
                             )}
                           </div>
                         </CardContent>
-                        
+
                         <CardFooter className="flex justify-between items-center pt-2">
                           <div className="text-lg font-semibold">
                             {formatPrice(property.price)}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            Ajouté le {formatDate(property.createdAt)}
                           </div>
                         </CardFooter>
                       </Card>
@@ -382,18 +438,89 @@ export default function PropertiesPage() {
                   </div>
                 )}
                 {/* Delete confirmation modal */}
-                <Dialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+                <Dialog
+                  open={!!deleteId}
+                  onOpenChange={(open) => !open && setDeleteId(null)}
+                >
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Confirmer la suppression</DialogTitle>
                     </DialogHeader>
-                    <div>Êtes-vous sûr de vouloir supprimer cette propriété ? Cette action est irréversible.</div>
+                    <div>
+                      Êtes-vous sûr de vouloir supprimer cette propriété ? Cette
+                      action est irréversible.
+                    </div>
                     <DialogFooter className="gap-2">
-                      <Button variant="outline" onClick={() => setDeleteId(null)} disabled={deleting}>
+                      <Button
+                        variant="outline"
+                        onClick={() => setDeleteId(null)}
+                        disabled={deleting}
+                      >
                         Annuler
                       </Button>
-                      <Button variant="destructive" onClick={() => deleteId && handleDeleteProperty(deleteId)} disabled={deleting}>
+                      <Button
+                        variant="destructive"
+                        onClick={() =>
+                          deleteId && handleDeleteProperty(deleteId)
+                        }
+                        disabled={deleting}
+                      >
                         {deleting ? "Suppression..." : "Supprimer"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+                {/* Property details modal */}
+                <Dialog
+                  open={!!detailProperty}
+                  onOpenChange={(open) => !open && setDetailProperty(null)}
+                >
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Détails de la propriété</DialogTitle>
+                    </DialogHeader>
+                    {detailProperty && (
+                      <div className="space-y-2">
+                        <div className="font-semibold text-lg">
+                          {detailProperty.title}
+                        </div>
+                        <div>
+                          <span className="font-medium">Type:</span>{" "}
+                          {propertyTypeLabels[detailProperty.type]}
+                        </div>
+                        <div>
+                          <span className="font-medium">Adresse:</span>{" "}
+                          {detailProperty.address}, {detailProperty.postalCode}{" "}
+                          {detailProperty.city}
+                        </div>
+                        <div>
+                          <span className="font-medium">Surface:</span>{" "}
+                          {detailProperty.surface} m²
+                        </div>
+                        <div>
+                          <span className="font-medium">Pièces:</span>{" "}
+                          {detailProperty.rooms}
+                        </div>
+                        <div>
+                          <span className="font-medium">Locataires:</span>{" "}
+                          {detailProperty.tenants}
+                        </div>
+                        <div>
+                          <span className="font-medium">Prix:</span>{" "}
+                          {formatPrice(detailProperty.price)}
+                        </div>
+                        <div>
+                          <span className="font-medium">Rendement:</span>{" "}
+                          {detailProperty.rentalYield.toFixed(1)}%
+                        </div>
+                      </div>
+                    )}
+                    <DialogFooter>
+                      <Button
+                        variant="outline"
+                        onClick={() => setDetailProperty(null)}
+                      >
+                        Fermer
                       </Button>
                     </DialogFooter>
                   </DialogContent>
