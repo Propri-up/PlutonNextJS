@@ -1,192 +1,245 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
-import { useState } from "react";
-import {
-  IconHome,
-  IconBuildingEstate,
-  IconCreditCard,
-  IconWreckingBall,
-  IconKey,
-  IconTrendingUp,
-} from "@tabler/icons-react";
-import { Badge } from "@/components/ui/badge";
-
-// Données simplifiées
-const properties = [
-  {
-    name: "Appartement Paris",
-    icon: <IconHome className="h-4 w-4" />,
-    credit: { total: 350000, paid: 120000, monthly: 1250, rate: 1.8 },
-    rent: 1800,
-    expenses: 480,
-  },
-  {
-    name: "Maison Bordeaux",
-    icon: <IconBuildingEstate className="h-4 w-4" />,
-    credit: { total: 220000, paid: 45000, monthly: 850, rate: 2.1 },
-    rent: 1050,
-    expenses: 360,
-  },
-];
-
-// Catégories de dépenses
-const expenseCategories = [
-  {
-    name: "Crédits",
-    color: "bg-blue-500",
-    icon: <IconCreditCard className="h-4 w-4" />,
-  },
-  {
-    name: "Entretien",
-    color: "bg-yellow-500",
-    icon: <IconWreckingBall className="h-4 w-4" />,
-  },
-  {
-    name: "Assurances",
-    color: "bg-red-500",
-    icon: <IconHome className="h-4 w-4" />,
-  },
-];
+import { BarChart, Bar, Tooltip, ResponsiveContainer, XAxis, YAxis, CartesianGrid } from "recharts";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { IconTrendingUp, IconTrendingDown, IconCreditCard, IconHome, IconBuilding, IconChartBar } from "@tabler/icons-react";
+import { cn } from "@/lib/utils";
 
 export default function StatistiquesPage() {
-  const [timeframe] = useState("current");
+  const [properties, setProperties] = useState<any[]>([]);
+  const [contracts, setContracts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Calcul du total des loyers
-  const totalRent = properties.reduce((sum, prop) => sum + prop.rent, 0);
+  useEffect(() => {
+    const fetchAll = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+        // Propriétés
+        const resProps = await fetch(`${apiUrl}/api/users/me`, { credentials: "include" });
+        if (!resProps.ok) throw new Error("Erreur lors du chargement des propriétés");
+        const dataProps = await resProps.json();
+        setProperties(dataProps.properties || []);
+        // Contrats (pour locataires)
+        const resContracts = await fetch(`${apiUrl}/api/contracts/owner`, { credentials: "include" });
+        if (!resContracts.ok) throw new Error("Erreur lors du chargement des contrats");
+        const dataContracts = await resContracts.json();
+        setContracts(dataContracts.contracts || []);
+      } catch (e: any) {
+        setError(e.message || "Erreur lors du chargement des données");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAll();
+  }, []);
 
-  // Calcul du total des dépenses
-  const totalExpenses = properties.reduce(
-    (sum, prop) => sum + prop.expenses,
-    0
-  );
+  // KPIs
+  const totalRent = properties.reduce((sum, prop) => sum + (prop.rent || 0), 0);
+  const totalCharges = properties.reduce((sum, prop) => sum + (prop.estimatedCharges || 0), 0);
+  const netIncome = totalRent - totalCharges;
+  const propertyCount = properties.length;
+  const avgRent = propertyCount ? Math.round(totalRent / propertyCount) : 0;
+  const avgCharges = propertyCount ? Math.round(totalCharges / propertyCount) : 0;
 
-  // Calcul du résultat net
-  const netIncome = totalRent - totalExpenses;
+  // Pour l'évolution, on simule une variation (à remplacer par calcul réel si tu veux)
+  const kpiDelta = {
+    rent: { value: "+2.1%", up: true },
+    charges: { value: "-1.2%", up: false },
+    net: { value: "+1.7%", up: true },
+    avg: { value: "+0.5%", up: true },
+  };
+
+  // BarChart mensuel (loyers/charges/net par mois)
+  const now = new Date();
+  const months = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
+    return d;
+  });
+  const monthLabels = months.map(d => d.toLocaleString("fr-FR", { month: "short" }));
+  // Simule la répartition par mois (si tu as des dates réelles, adapte ici)
+  const barData = months.map((d, i) => ({
+    month: monthLabels[i],
+    rent: totalRent, // à remplacer par la somme réelle par mois si dispo
+    charges: totalCharges, // idem
+    net: netIncome, // idem
+  }));
+
+  // Liste des logements (propriétés)
+  const logements = properties.map((prop: any) => ({
+    id: prop.id,
+    address: prop.address,
+    rent: prop.rent,
+    charges: prop.estimatedCharges,
+    net: (prop.rent || 0) - (prop.estimatedCharges || 0),
+  }));
 
   return (
     <SidebarProvider
-      style={
-        {
-          "--sidebar-width": "calc(var(--spacing) * 72)",
-          "--header-height": "calc(var(--spacing) * 12)",
-        } as React.CSSProperties
-      }
+      style={{
+        "--sidebar-width": "calc(var(--spacing) * 72)",
+        "--header-height": "calc(var(--spacing) * 12)",
+      } as React.CSSProperties}
       className="bg-[#0A0A22] text-white min-h-screen"
     >
       <AppSidebar variant="inset" />
       <SidebarInset>
         <SiteHeader />
         <div className="flex flex-1 flex-col p-4 md:p-6 gap-6">
-          <div className="flex flex-col gap-2">
-            <h1 className="text-2xl font-bold tracking-tight">
-              Statistiques Immobilières
-            </h1>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* KPI Card 1 */}
+            <Card className="relative overflow-hidden group bg-card">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardDescription>Total loyers perçus</CardDescription>
+                  <span className="rounded bg-muted px-2 py-0.5 text-xs flex items-center gap-1">
+                    <IconTrendingUp className="h-4 w-4 text-green-400" /> {kpiDelta.rent.value}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 mt-2">
+                  <div className="rounded-full bg-muted p-2">
+                    <IconCreditCard className="h-6 w-6 text-primary" />
+                  </div>
+                  <CardTitle className="text-3xl font-bold tabular-nums">{totalRent.toLocaleString("fr-FR")} €</CardTitle>
+                </div>
+                <div className="mt-2 text-xs text-muted-foreground flex gap-2">
+                  <span>{propertyCount} logement{propertyCount > 1 ? 's' : ''}</span>
+                  <span>•</span>
+                  <span>Total mensuel</span>
+                </div>
+              </CardHeader>
+            </Card>
+            {/* KPI Card 2 */}
+            <Card className="relative overflow-hidden group bg-card">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardDescription>Charges estimées</CardDescription>
+                  <span className="rounded bg-muted px-2 py-0.5 text-xs flex items-center gap-1">
+                    <IconTrendingDown className="h-4 w-4 text-red-400" /> {kpiDelta.charges.value}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 mt-2">
+                  <div className="rounded-full bg-muted p-2">
+                    <IconHome className="h-6 w-6 text-primary" />
+                  </div>
+                  <CardTitle className="text-3xl font-bold tabular-nums">{totalCharges.toLocaleString("fr-FR")} €</CardTitle>
+                </div>
+                <div className="mt-2 text-xs text-muted-foreground flex gap-2">
+                  <span>Moyenne: {avgCharges.toLocaleString("fr-FR")} €</span>
+                  <span>•</span>
+                  <span>par logement</span>
+                </div>
+              </CardHeader>
+            </Card>
+            {/* KPI Card 3 */}
+            <Card className="relative overflow-hidden group bg-card">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardDescription>Résultat Net</CardDescription>
+                  <span className="rounded bg-muted px-2 py-0.5 text-xs flex items-center gap-1">
+                    <IconTrendingUp className="h-4 w-4 text-green-400" /> {kpiDelta.net.value}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 mt-2">
+                  <div className="rounded-full bg-muted p-2">
+                    <IconBuilding className="h-6 w-6 text-primary" />
+                  </div>
+                  <CardTitle className="text-3xl font-bold tabular-nums">{netIncome.toLocaleString("fr-FR")} €</CardTitle>
+                </div>
+                <div className="mt-2 text-xs text-muted-foreground flex gap-2">
+                  <span>Moyenne: {(avgRent - avgCharges).toLocaleString("fr-FR")} €</span>
+                  <span>•</span>
+                  <span>par logement</span>
+                </div>
+              </CardHeader>
+            </Card>
+            {/* KPI Card 4 */}
+            <Card className="relative overflow-hidden group bg-card">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardDescription>Loyer moyen</CardDescription>
+                  <span className="rounded bg-muted px-2 py-0.5 text-xs flex items-center gap-1">
+                    <IconTrendingUp className="h-4 w-4 text-green-400" /> {kpiDelta.avg.value}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 mt-2">
+                  <div className="rounded-full bg-muted p-2">
+                    <IconChartBar className="h-6 w-6 text-primary" />
+                  </div>
+                  <CardTitle className="text-3xl font-bold tabular-nums">{avgRent.toLocaleString("fr-FR")} €</CardTitle>
+                </div>
+                <div className="mt-2 text-xs text-muted-foreground flex gap-2">
+                  <span>{propertyCount} logement{propertyCount > 1 ? 's' : ''}</span>
+                  <span>•</span>
+                  <span>par logement</span>
+                </div>
+              </CardHeader>
+            </Card>
           </div>
 
-          <Tabs defaultValue="overview" className="space-y-4">
-            {/* VUE D'ENSEMBLE */}
-            <TabsContent value="overview" className="space-y-4">
-              {/* Résumé en chiffres */}
-              <div className="grid gap-4 md:grid-cols-3">
-                <Card className="@container/card">
-                  <CardHeader>
-                    <CardDescription>Total Revenue</CardDescription>
-                    <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-                      $1,250.00
-                    </CardTitle>
-                    <CardAction>
-                      <Badge variant="outline">
-                        <IconTrendingUp />
-                        +12.5%
-                      </Badge>
-                    </CardAction>
-                  </CardHeader>
-                  <CardFooter className="flex-col items-start gap-1.5 text-sm">
-                    <div className="line-clamp-1 flex gap-2 font-medium">
-                      Trending up this month{" "}
-                      <IconTrendingUp className="size-4" />
-                    </div>
-                    <div className="text-muted-foreground">
-                      Visitors for the last 6 months
-                    </div>
-                  </CardFooter>
-                </Card>
-                <Card className="bg-card text-card-foreground">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Dépenses
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {totalExpenses.toLocaleString("fr-FR")} €
-                    </div>
-                    <p className="text-xs text-muted-foreground">par mois</p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-card text-card-foreground">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Résultat Net
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {netIncome.toLocaleString("fr-FR")} €
-                    </div>
-                    <p className="text-xs text-muted-foreground">par mois</p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Répartition par bien */}
-              <Card className="bg-card text-card-foreground">
-                <CardHeader>
-                  <CardTitle>Rendement par bien</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {properties.map((property, index) => (
-                    <div key={index} className="mb-4">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2">
-                          <div className="bg-primary/20 p-1 rounded-md">
-                            {property.icon}
-                          </div>
-                          <span>{property.name}</span>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
+            {/* BarChart Overview */}
+            <Card className="col-span-2 bg-card">
+              <CardHeader>
+                <CardTitle>Overview</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={barData} className="text-white">
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="month" stroke="var(--muted-foreground)" />
+                    <YAxis stroke="var(--muted-foreground)" />
+                    <Tooltip
+                      contentStyle={{ background: "var(--card)", border: "none", color: "var(--foreground)" }}
+                      cursor={{ fill: "var(--muted)", opacity: 0.15 }}
+                      labelStyle={{ color: "var(--foreground)" }}
+                    />
+                    <Bar dataKey="rent" fill="var(--primary)" radius={[6, 6, 0, 0]} barSize={28} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+            {/* Liste à droite : logements */}
+            <Card className="col-span-1 flex flex-col bg-card">
+              <CardHeader>
+                <CardTitle>Mes logements</CardTitle>
+                <CardDescription>Ce que chaque logement me génère</CardDescription>
+              </CardHeader>
+              <CardContent className="flex-1 min-h-[300px]">
+                <ScrollArea className="h-[300px] pr-2">
+                  {logements.length === 0 ? (
+                    <div className="text-muted-foreground text-sm">Aucun logement trouvé.</div>
+                  ) : (
+                    logements.map((logement) => (
+                      <div key={logement.id} className="flex items-center gap-3 py-2 border-b border-border last:border-b-0">
+                        <div className="flex-1">
+                          <div className="font-medium leading-tight">{logement.address}</div>
+                          <div className="text-xs text-muted-foreground">Loyer: {logement.rent?.toLocaleString("fr-FR")} €</div>
+                          <div className="text-xs text-muted-foreground">Charges: {logement.charges?.toLocaleString("fr-FR")} €</div>
                         </div>
-                        <span className="text-sm">
-                          {property.rent - property.expenses} € /mois
-                        </span>
+                        <div className="font-mono font-semibold text-right text-muted-foreground">
+                          {logement.net?.toLocaleString("fr-FR")} €
+                        </div>
                       </div>
-                      <Progress
-                        value={
-                          ((property.rent - property.expenses) /
-                            property.rent) *
-                          100
-                        }
-                        className="h-2"
-                      />
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-          </Tabs>
+                    ))
+                  )}
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </SidebarInset>
     </SidebarProvider>
