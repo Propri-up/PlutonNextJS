@@ -65,6 +65,11 @@ const data = {
       icon: IconMessage2,
     },
     {
+      name: "Documents",
+      url: "/documents",
+      icon: IconFileWord,
+    },
+    {
       name:"Statistiques",
       url: "/statistiques",
       icon: IconChartBar, 

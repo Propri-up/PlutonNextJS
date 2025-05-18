@@ -7,12 +7,13 @@ import { usePathname } from "next/navigation"
 import { MoonIcon, SunIcon } from "@radix-ui/react-icons"
 import { useTheme } from "next-themes"
 
-export function SiteHeader() {
+export function SiteHeader({ title }: { title?: string }) {
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
   
   // Fonction pour obtenir le titre de la page à partir du pathname
   const getPageTitle = () => {
+    if (title) return title
     // Extrait le dernier segment du chemin et capitalise la première lettre
     const path = pathname.split("/").filter(Boolean).pop() || "dashboard"
     return path.charAt(0).toUpperCase() + path.slice(1)
