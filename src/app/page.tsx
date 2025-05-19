@@ -134,7 +134,7 @@ export default function Home() {
 
           {/* Navigation desktop */}
           <nav className="hidden md:flex items-center space-x-8">
-            {["Fonctionnalités", "Télécharger", "Connexion"].map((item, i) => (
+            {["Fonctionnalités", "Télécharger"].map((item, i) => (
               <motion.div
                 key={item}
                 initial={{ opacity: 0, y: -10 }}
@@ -153,8 +153,8 @@ export default function Home() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              <Link href="/register" className="bg-gradient-to-r from-[#3461FF] to-[#8454EB] hover:opacity-90 text-white font-medium py-2 px-6 rounded-full shadow-lg transition-all duration-300">
-                Inscription
+              <Link href="/login" className="bg-gradient-to-r from-[#3461FF] to-[#8454EB] hover:opacity-90 text-white font-medium py-2 px-6 rounded-full shadow-lg transition-all duration-300">
+                Connexion
               </Link>
             </motion.div>
           </nav>
