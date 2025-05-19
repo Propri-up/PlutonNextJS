@@ -8,6 +8,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -99,94 +100,95 @@ export default function StatistiquesPage() {
       <SidebarInset>
         <SiteHeader />
         <div className="flex flex-1 flex-col p-4 md:p-6 gap-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Cartes KPI : 2 par ligne sur desktop (md), 4 par ligne sur très grand écran (xl) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card *:data-[slot=card]:shadow-xs">
             {/* KPI Card 1 */}
-            <Card className="relative overflow-hidden group bg-card">
+            <Card className="@container/card relative" data-slot="card">
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardDescription>Total loyers perçus</CardDescription>
-                  <span className="rounded bg-muted px-2 py-0.5 text-xs flex items-center gap-1">
-                    <IconTrendingUp className="h-4 w-4 text-green-400" /> {kpiDelta.rent.value}
-                  </span>
+                <CardDescription>Total loyers perçus</CardDescription>
+                <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+                  {totalRent.toLocaleString("fr-FR")} €
+                </CardTitle>
+              </CardHeader>
+              <span className="rounded bg-muted px-2 py-0.5 text-xs flex items-center gap-1 absolute top-4 right-4 z-10">
+                <IconTrendingUp className="h-4 w-4 text-green-400" /> {kpiDelta.rent.value}
+              </span>
+              <CardFooter className="flex items-center gap-3 mt-2">
+                <div className="rounded-full bg-muted p-2">
+                  <IconCreditCard className="h-6 w-6 text-primary" />
                 </div>
-                <div className="flex items-center gap-3 mt-2">
-                  <div className="rounded-full bg-muted p-2">
-                    <IconCreditCard className="h-6 w-6 text-primary" />
-                  </div>
-                  <CardTitle className="text-3xl font-bold tabular-nums">{totalRent.toLocaleString("fr-FR")} €</CardTitle>
-                </div>
-                <div className="mt-2 text-xs text-muted-foreground flex gap-2">
+                <div className="text-xs text-muted-foreground flex gap-2">
                   <span>{propertyCount} logement{propertyCount > 1 ? 's' : ''}</span>
                   <span>•</span>
                   <span>Total mensuel</span>
                 </div>
-              </CardHeader>
+              </CardFooter>
             </Card>
             {/* KPI Card 2 */}
-            <Card className="relative overflow-hidden group bg-card">
+            <Card className="@container/card relative" data-slot="card">
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardDescription>Charges estimées</CardDescription>
-                  <span className="rounded bg-muted px-2 py-0.5 text-xs flex items-center gap-1">
-                    <IconTrendingDown className="h-4 w-4 text-red-400" /> {kpiDelta.charges.value}
-                  </span>
+                <CardDescription>Charges estimées</CardDescription>
+                <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+                  {totalCharges.toLocaleString("fr-FR")} €
+                </CardTitle>
+              </CardHeader>
+              <span className="rounded bg-muted px-2 py-0.5 text-xs flex items-center gap-1 absolute top-4 right-4 z-10">
+                <IconTrendingDown className="h-4 w-4 text-red-400" /> {kpiDelta.charges.value}
+              </span>
+              <CardFooter className="flex items-center gap-3 mt-2">
+                <div className="rounded-full bg-muted p-2">
+                  <IconHome className="h-6 w-6 text-primary" />
                 </div>
-                <div className="flex items-center gap-3 mt-2">
-                  <div className="rounded-full bg-muted p-2">
-                    <IconHome className="h-6 w-6 text-primary" />
-                  </div>
-                  <CardTitle className="text-3xl font-bold tabular-nums">{totalCharges.toLocaleString("fr-FR")} €</CardTitle>
-                </div>
-                <div className="mt-2 text-xs text-muted-foreground flex gap-2">
+                <div className="text-xs text-muted-foreground flex gap-2">
                   <span>Moyenne: {avgCharges.toLocaleString("fr-FR")} €</span>
                   <span>•</span>
                   <span>par logement</span>
                 </div>
-              </CardHeader>
+              </CardFooter>
             </Card>
             {/* KPI Card 3 */}
-            <Card className="relative overflow-hidden group bg-card">
+            <Card className="@container/card relative" data-slot="card">
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardDescription>Résultat Net</CardDescription>
-                  <span className="rounded bg-muted px-2 py-0.5 text-xs flex items-center gap-1">
-                    <IconTrendingUp className="h-4 w-4 text-green-400" /> {kpiDelta.net.value}
-                  </span>
+                <CardDescription>Résultat Net</CardDescription>
+                <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+                  {netIncome.toLocaleString("fr-FR")} €
+                </CardTitle>
+              </CardHeader>
+              <span className="rounded bg-muted px-2 py-0.5 text-xs flex items-center gap-1 absolute top-4 right-4 z-10">
+                <IconTrendingUp className="h-4 w-4 text-green-400" /> {kpiDelta.net.value}
+              </span>
+              <CardFooter className="flex items-center gap-3 mt-2">
+                <div className="rounded-full bg-muted p-2">
+                  <IconBuilding className="h-6 w-6 text-primary" />
                 </div>
-                <div className="flex items-center gap-3 mt-2">
-                  <div className="rounded-full bg-muted p-2">
-                    <IconBuilding className="h-6 w-6 text-primary" />
-                  </div>
-                  <CardTitle className="text-3xl font-bold tabular-nums">{netIncome.toLocaleString("fr-FR")} €</CardTitle>
-                </div>
-                <div className="mt-2 text-xs text-muted-foreground flex gap-2">
+                <div className="text-xs text-muted-foreground flex gap-2">
                   <span>Moyenne: {(avgRent - avgCharges).toLocaleString("fr-FR")} €</span>
                   <span>•</span>
                   <span>par logement</span>
                 </div>
-              </CardHeader>
+              </CardFooter>
             </Card>
             {/* KPI Card 4 */}
-            <Card className="relative overflow-hidden group bg-card">
+            <Card className="@container/card relative" data-slot="card">
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardDescription>Loyer moyen</CardDescription>
-                  <span className="rounded bg-muted px-2 py-0.5 text-xs flex items-center gap-1">
-                    <IconTrendingUp className="h-4 w-4 text-green-400" /> {kpiDelta.avg.value}
-                  </span>
+                <CardDescription>Loyer moyen</CardDescription>
+                <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+                  {avgRent.toLocaleString("fr-FR")} €
+                </CardTitle>
+              </CardHeader>
+              <span className="rounded bg-muted px-2 py-0.5 text-xs flex items-center gap-1 absolute top-4 right-4 z-10">
+                <IconTrendingUp className="h-4 w-4 text-green-400" /> {kpiDelta.avg.value}
+              </span>
+              <CardFooter className="flex items-center gap-3 mt-2">
+                <div className="rounded-full bg-muted p-2">
+                  <IconChartBar className="h-6 w-6 text-primary" />
                 </div>
-                <div className="flex items-center gap-3 mt-2">
-                  <div className="rounded-full bg-muted p-2">
-                    <IconChartBar className="h-6 w-6 text-primary" />
-                  </div>
-                  <CardTitle className="text-3xl font-bold tabular-nums">{avgRent.toLocaleString("fr-FR")} €</CardTitle>
-                </div>
-                <div className="mt-2 text-xs text-muted-foreground flex gap-2">
+                <div className="text-xs text-muted-foreground flex gap-2">
                   <span>{propertyCount} logement{propertyCount > 1 ? 's' : ''}</span>
                   <span>•</span>
                   <span>par logement</span>
                 </div>
-              </CardHeader>
+              </CardFooter>
             </Card>
           </div>
 

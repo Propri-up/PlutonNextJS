@@ -312,10 +312,10 @@ export default function PropertiesPage() {
       <AppSidebar variant="inset" />
       <SidebarInset>
         <SiteHeader />
-        <div className="flex flex-1 flex-col p-4 md:p-6 gap-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-1 flex-col p-4 md:p-6 gap-6 overflow-x-hidden overflow-y-auto">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-4 mb-2">
             <div>
-              <h1 className="text-2xl font-bold">Mes Propriétés</h1>
+              <h1 className="text-2xl font-bold text-foreground tracking-tight leading-tight">Mes Propriétés</h1>
             </div>
             <Button onClick={() => setAddOpen(true)} variant="default" className="gap-2">
               <IconPlus className="h-5 w-5" /> Ajouter un bien
@@ -368,34 +368,30 @@ export default function PropertiesPage() {
                   )}
                 </div>
               ) : (
-                <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+                <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                   {filteredProperties.map((property) => (
                     <Link key={property.id} href={`/properties/${property.id}`} className="group">
                       <Card
-                        className="overflow-hidden shadow-md hover:shadow-xl transition cursor-pointer flex flex-col bg-background border border-border rounded-xl min-h-[320px] group-hover:ring-2 group-hover:ring-primary"
+                        className="overflow-hidden shadow-md hover:shadow-xl transition cursor-pointer flex flex-col bg-gradient-to-t from-primary/5 to-card dark:bg-card border border-border rounded-2xl min-h-[340px] group-hover:ring-2 group-hover:ring-primary relative"
                         tabIndex={0}
                         role="button"
                         aria-label={`Voir détails de ${property.title}`}
                       >
-                        <div className="h-44 w-full flex items-center justify-center bg-muted relative">
-                          {property.imageUrl ? (
-                            <img
-                              src={property.imageUrl}
-                              alt={property.title}
-                              className="object-cover w-full h-full"
-                            />
-                          ) : (
-                            <IconBuilding className="h-16 w-16 text-muted-foreground" />
-                          )}
-                          <Badge className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded">
-                            {propertyTypeLabels[property.type]}
-                          </Badge>
+                        {/* Badge type en haut à gauche */}
+                        <Badge className="absolute top-4 left-4 z-10 bg-primary text-primary-foreground text-xs px-3 py-1 rounded shadow-md">
+                          {propertyTypeLabels[property.type]}
+                        </Badge>
+                        {/* Logo centré, fond harmonieux */}
+                        <div className="h-40 w-full flex items-center justify-center bg-gradient-to-b from-background/80 to-muted/80 dark:from-card/80 dark:to-muted/60 relative rounded-b-none rounded-t-2xl">
+                          <span className="flex items-center justify-center rounded-full bg-muted shadow-inner h-20 w-20 border-2 border-primary/20">
+                            {PropertyTypeIcon({ type: property.type })}
+                          </span>
                         </div>
                         <CardHeader className="pb-2 flex-1 flex flex-col justify-between">
-                          <CardTitle className="text-lg font-semibold truncate">
+                          <CardTitle className="text-lg font-semibold truncate text-foreground">
                             {property.title}
                           </CardTitle>
-                          <CardDescription className="truncate mt-1 text-xs">
+                          <CardDescription className="truncate mt-1 text-xs text-muted-foreground">
                             {property.address}
                           </CardDescription>
                         </CardHeader>

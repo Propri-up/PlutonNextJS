@@ -64,7 +64,7 @@ export default function DocumentsPage() {
         "--sidebar-width": "calc(var(--spacing) * 72)",
         "--header-height": "calc(var(--spacing) * 12)",
       } as React.CSSProperties}
-      className="bg-[#0A0A22] text-white min-h-screen"
+      className="bg-background text-foreground min-h-screen"
     >
       <AppSidebar variant="inset" />
       <SidebarInset>
@@ -73,7 +73,7 @@ export default function DocumentsPage() {
         <div className="flex flex-1 flex-col p-4 md:p-6 gap-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold">Mes documents</h1>
+              <h1 className="text-2xl font-bold text-foreground">Mes documents</h1>
             </div>
           </div>
           {/* === FILTRES === */}
@@ -97,7 +97,7 @@ export default function DocumentsPage() {
             </Select>
           </div>
           {/* === GRILLE DE DOCUMENTS === */}
-          <div className="grid gap-x-1 gap-y-5 grid-cols-1 sm:grid-cols-2 md:grid-cols-4">
+          <div className="grid gap-x-4 gap-y-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
             {loading ? (
               <div className="col-span-full flex justify-center items-center h-40">Chargement...</div>
             ) : error ? (
@@ -106,12 +106,12 @@ export default function DocumentsPage() {
               <div className="col-span-full text-muted-foreground text-sm">Aucun document trouvé.</div>
             ) : (
               filteredDocuments.map((doc) => (
-                <Card key={doc.id} className="group flex flex-col h-full max-w-[440px] w-full bg-card border border-border shadow-sm hover:shadow-lg transition-shadow rounded-2xl overflow-hidden p-0 relative">
+                <Card key={doc.id} className="group flex flex-col h-full w-full bg-card border border-border shadow-sm hover:shadow-lg transition-shadow rounded-2xl overflow-hidden p-0 relative">
                   <div className="bg-muted flex items-center justify-center h-32 border-b border-border">
                     <span className="text-4xl text-primary/80 group-hover:scale-110 transition-transform">📄</span>
                   </div>
                   <div className="flex flex-col gap-1 px-7 pt-5 pb-2">
-                    <div className="font-semibold truncate text-lg text-white mb-1 group-hover:text-primary transition-colors">{doc.title || doc.name || `Document #${doc.id}`}</div>
+                    <div className="font-semibold truncate text-lg text-foreground mb-1 group-hover:text-primary transition-colors">{doc.title || doc.name || `Document #${doc.id}`}</div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <span className="capitalize font-medium bg-muted/60 px-2 py-0.5 rounded">{doc.type || "-"}</span>
                       <span className="ml-auto">{doc.createdAt ? new Date(doc.createdAt).toLocaleDateString("fr-FR") : "-"}</span>

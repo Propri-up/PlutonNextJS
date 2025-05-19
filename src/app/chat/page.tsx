@@ -233,16 +233,16 @@ export default function ChatPage() {
           "--header-height": "calc(var(--spacing) * 12)",
         } as React.CSSProperties
       }
-      className="bg-[#0A0A22] text-white h-screen"
+      className="bg-background text-foreground min-h-screen"
     >
       <AppSidebar variant="inset" />
-      <SidebarInset className="h-screen flex flex-col overflow-hidden">
+      <SidebarInset className="h-screen flex flex-col overflow-hidden bg-background text-foreground">
         <SiteHeader />
 
         <div className="flex flex-1 h-[calc(100vh-var(--header-height))] overflow-hidden flex-col md:flex-row">
           <div
             className={cn(
-              "border-r border-border flex flex-col overflow-hidden transition-all duration-300",
+              "border-r border-border flex flex-col overflow-hidden transition-all duration-300 bg-background text-foreground",
               "md:w-64 md:block md:static md:min-h-0",
               showSidebar
                 ? "fixed inset-0 z-50 bg-[#0A0A22] w-full h-full"
@@ -274,7 +274,7 @@ export default function ChatPage() {
 
             <div className="flex-1 overflow-y-auto">
               {conversations.length > 0 ? (
-                <div className="p-2 space-y-1">
+                <div className="p-2 space-y-1 divide-y divide-border">
                   {conversations.map((chat) => (
                     <div
                       key={chat.id}
@@ -302,7 +302,7 @@ export default function ChatPage() {
           </div>
 
           <div className="flex flex-1 flex-col h-full overflow-hidden">
-            <div className="md:hidden p-3 border-b border-border flex items-center shrink-0">
+            <div className="md:hidden p-3 border-b border-border flex items-center shrink-0 bg-card text-foreground">
               <Button
                 variant="ghost"
                 size="sm"
@@ -317,7 +317,7 @@ export default function ChatPage() {
             </div>
 
             <div
-              className="flex-1 overflow-y-auto p-3 md:p-4"
+              className="flex-1 overflow-y-auto p-3 md:p-4 bg-background text-foreground"
               id="messagesContainer"
             >
               {loading ? (
@@ -381,7 +381,7 @@ export default function ChatPage() {
                   <div ref={messagesEndRef} />
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                <div className="flex flex-col items-center justify-center h-full text-foreground">
                   {currentChat ? (
                     <p>Commencez la conversation</p>
                   ) : (
@@ -400,7 +400,7 @@ export default function ChatPage() {
               )}
             </div>
 
-            <div className="border-t border-border p-3 md:p-4 shrink-0 bg-[#0A0A22]">
+            <div className="border-t border-border p-3 md:p-4 shrink-0 bg-card">
               <div className="flex items-center gap-2">
                 <Input
                   placeholder="Écrivez votre message..."
