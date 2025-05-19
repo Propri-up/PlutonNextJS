@@ -13,141 +13,165 @@ import {
   IconUser,
   IconRobot,
   IconMenu2,
-  IconX,
   IconChevronLeft,
+  IconWifi,
+  IconWifiOff,
+  IconCheck,
 } from "@tabler/icons-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useEffect, useState, useRef } from "react";
 import { cn } from "@/lib/utils";
 
-// Données mock pour simuler les conversations
-const MOCK_CONVERSATIONS: ChatConversation[] = [
-  {
-    id: "c1",
-    title: "Investissements immobiliers",
-    messages: [
-      {
-        id: "m1",
-        content:
-          "Bonjour, j'aimerais en savoir plus sur l'investissement locatif",
-        sender: "user" as "user",
-        timestamp: "2023-04-10T14:22:00Z",
-      },
-      {
-        id: "m2",
-        content:
-          "Bonjour ! Je serais ravi de vous conseiller sur l'investissement locatif. Avez-vous déjà un projet en tête ?",
-        sender: "assistant" as "assistant",
-        timestamp: "2023-04-10T14:23:00Z",
-      },
-      {
-        id: "m3",
-        content:
-          "Je cherche à investir dans une ville moyenne avec un bon rendement",
-        sender: "user",
-        timestamp: "2023-04-10T14:24:30Z",
-      },
-      {
-        id: "m4",
-        content:
-          "Excellent choix ! Les villes moyennes offrent souvent les meilleurs rendements. Je vous recommande de regarder du côté de Limoges, Orléans ou Saint-Étienne où les prix sont encore raisonnables avec des rendements entre 7 et 9%.",
-        sender: "assistant",
-        timestamp: "2023-04-10T14:26:00Z",
-      },
-    ],
-    createdAt: "2023-04-10T14:22:00Z",
-    updatedAt: "2023-04-10T14:26:00Z",
-  },
-  {
-    id: "c2",
-    title: "Assurance vie",
-    messages: [
-      {
-        id: "m1",
-        content: "Quels sont les meilleurs fonds euros actuellement ?",
-        sender: "user",
-        timestamp: "2023-04-12T09:15:00Z",
-      },
-      {
-        id: "m2",
-        content:
-          "Les meilleurs fonds euros offrent actuellement entre 2% et 3%. Je vous recommande particulièrement ceux proposés par Spirica et Suravenir qui ont bien performé l'année dernière.",
-        sender: "assistant",
-        timestamp: "2023-04-12T09:16:30Z",
-      },
-    ],
-    createdAt: "2023-04-12T09:15:00Z",
-    updatedAt: "2023-04-12T09:16:30Z",
-  },
-];
-
-// Types
+/**
+ * Types pour l'interface de chat
+ */
 interface ChatMessage {
-  id: string;
+  id?: number;
+  nonce?: number;
   content: string;
-  sender: "user" | "assistant";
-  timestamp: string;
+  sendDate: string;
+  chatId: number;
+  userId: string;
+  isRead: boolean;
+}
+
+interface ChatParticipant {
+  id: number;
+  chatId: number;
+  userId: string;
 }
 
 interface ChatConversation {
-  id: string;
-  title: string;
-  messages: ChatMessage[];
-  createdAt: string;
-  updatedAt: string;
+  id: number;
+  chatType: string;
+  propertyId: number;
+  participants: ChatParticipant[];
+  lastMessage?: ChatMessage;
+  messages?: ChatMessage[];
 }
 
+// URL de l'API définie dans .env
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+/**
+ * Page de Chat - Interface de discussion avec l'assistant IA
+ *
+ * Cette page permet de:
+ * - Créer de nouvelles conversations
+ * - Visualiser l'historique des conversations
+ * - Envoyer des messages et recevoir des réponses
+ * - Fonctionner en mode hors ligne/en ligne
+ */
 export default function ChatPage() {
+  // États principaux
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [currentChat, setCurrentChat] = useState<ChatConversation | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+
+  // États de l'interface
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState(true);
+
+  // Ajout d'un état pour les messages échoués
+  const [failedMessages, setFailedMessages] = useState<ChatMessage[]>([]);
+
+  // Référence pour le défilement automatique
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Verrouiller le défilement de la page
+  // Référence pour le conteneur de messages
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [shouldCenterMessages, setShouldCenterMessages] = useState(false);
+
+  // Onglet sélectionné : "property" ou "private"
+  const [selectedTab, setSelectedTab] = useState<'property' | 'private'>('property');
+
+  // Conversations filtrées selon l'onglet
+  const filteredConversations = conversations.filter(
+    (c) => c.chatType === selectedTab
+  );
+
+  // Ajout d'un état pour la modale de sélection de participants
+  const [showParticipantDialog, setShowParticipantDialog] = useState(false);
+  const [privateEmail, setPrivateEmail] = useState("");
+
+  // Récupération de l'ID de l'utilisateur actuel
+  // (pour l'affichage des messages)
   useEffect(() => {
+    const getCurrentUser = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/users/me`, {
+          credentials: "include",
+        });
+        if (res.ok) {
+          const userData = await res.json();
+          setCurrentUserId(userData.user.id);
+        }
+      } catch (err) {
+        console.error("Error fetching current user:", err);
+      }
+    };
+
+    getCurrentUser();
+  }, []);
+
+  /**
+   * Gestion du défilement et du verrouillage de la page
+   */
+  useEffect(() => {
+    // Empêche le défilement du body
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = "";
     };
   }, []);
 
-  // Charger les conversations
-  const fetchChats = () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      setConversations(MOCK_CONVERSATIONS);
-      if (MOCK_CONVERSATIONS.length > 0 && !currentChat) {
-        switchConversation(MOCK_CONVERSATIONS[0].id);
-      }
-    } catch (err) {
-      console.error("Erreur lors du chargement des conversations:", err);
-      setError("Impossible de charger les conversations");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Récupérer les conversations au chargement
+  // Défilement automatique vers le dernier message OU centrage si peu de messages
   useEffect(() => {
-    fetchChats();
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    // Si le contenu déborde, scroll en bas, sinon centre verticalement
+    if (container.scrollHeight > container.clientHeight + 10) {
+      setShouldCenterMessages(false);
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    } else {
+      setShouldCenterMessages(true);
+    }
+  }, [currentChat?.messages, loading]);
+
+  /**
+   * Détection de l'état de la connexion internet
+   */
+  useEffect(() => {
+    const handleOnlineStatus = () => setIsOnline(navigator.onLine);
+
+    window.addEventListener("online", handleOnlineStatus);
+    window.addEventListener("offline", handleOnlineStatus);
+    setIsOnline(navigator.onLine);
+
+    return () => {
+      window.removeEventListener("online", handleOnlineStatus);
+      window.removeEventListener("offline", handleOnlineStatus);
+    };
   }, []);
 
-  // Scroll vers le bas quand de nouveaux messages arrivent
+  // Réinitialisation de l'erreur et rechargement des données quand la connexion revient
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    if (isOnline && error?.includes("connexion internet")) {
+      fetchChats();
     }
-  }, [currentChat?.messages]);
+  }, [isOnline, error]);
 
-  // Fermer le sidebar en mode mobile quand on change de conversation
+  /**
+   * Gestion responsive du sidebar
+   */
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= 768) {
-        setShowSidebar(false);
+        setShowSidebar(false); // Fermer le sidebar mobile en mode desktop
       }
     };
 
@@ -155,63 +179,263 @@ export default function ChatPage() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Créer une nouvelle conversation
-  const createNewConversation = () => {
-    const newChat: ChatConversation = {
-      id: `c${Date.now()}`,
-      title: "Nouvelle conversation",
-      messages: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+  /**
+   * Récupère toutes les conversations depuis l'API
+   */
+  const fetchChats = async () => {
+    setLoading(true);
+    setError(null);
 
-    setConversations((prev) => [newChat, ...prev]);
-    setCurrentChat(newChat);
-    setShowSidebar(false);
+    try {
+      // Vérification de la connexion internet
+      if (!isOnline) {
+        throw new Error("Pas de connexion internet");
+      }
+
+      const response = await fetch(`${API_URL}/api/chat/list`, {
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        let errMsg = `Erreur serveur: ${response.status}`;
+        try {
+          const errData = await response.json();
+          if (errData && errData.error) errMsg = errData.error;
+        } catch {}
+        throw new Error(errMsg);
+      }
+
+      const data = await response.json();
+      setConversations(data);
+
+      // Sélectionner la première conversation si aucune n'est active
+      if (data.length > 0 && !currentChat) {
+        await switchConversation(data[0].id);
+      }
+    } catch (err) {
+      console.error("Erreur lors du chargement des conversations:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Impossible de charger les conversations"
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSendMessage = () => {
-    if (!newMessage.trim() || !currentChat) return;
+  // Chargement initial des conversations
+  useEffect(() => {
+    fetchChats();
+  }, []);
 
-    // Message de l'utilisateur
-    const userMessage: ChatMessage = {
-      id: `m${Date.now()}`,
-      content: newMessage,
-      sender: "user",
-      timestamp: new Date().toISOString(),
-    };
-
-    // Mise à jour de la conversation
-    const updatedChat = {
-      ...currentChat,
-      messages: [...currentChat.messages, userMessage],
-      updatedAt: new Date().toISOString(),
-    };
-
-    // Mise à jour de l'état
-    setCurrentChat(updatedChat);
-    setConversations((prevConvs) =>
-      prevConvs.map((conv) => (conv.id === currentChat.id ? updatedChat : conv))
-    );
-
-    // Réinitialiser le champ de message
-    setNewMessage("");
+  /**
+   * Crée une nouvelle conversation
+   */
+  const createNewConversation = async () => {
+    if (!isOnline) {
+      setError("Pas de connexion internet");
+      return;
+    }
+    try {
+      setLoading(true);
+      // Création selon l'onglet sélectionné
+      const body: any = { chatType: selectedTab };
+      if (selectedTab === 'property') {
+        body.propertyId = 0;
+        body.participantIds = [currentUserId];
+      } else {
+        // Pour une discussion privée, pas de propertyId, mais il faut au moins le user courant
+        body.propertyId = null;
+        body.participantIds = [currentUserId];
+      }
+      const response = await fetch(`${API_URL}/api/chat/create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) {
+        let errMsg = `Erreur serveur: ${response.status}`;
+        try {
+          const errData = await response.json();
+          if (errData && errData.error) errMsg = errData.error;
+        } catch {}
+        throw new Error(errMsg);
+      }
+      const resp = await response.json();
+      const newChat = resp.chat;
+      setConversations((prev) => [newChat, ...prev]);
+      setCurrentChat(newChat);
+      setShowSidebar(false);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Impossible de créer une conversation"
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Changer de conversation
-  const switchConversation = (id: string) => {
+  /**
+   * Fonction pour ouvrir la modale de création privée (remplace la sélection)
+   */
+  const openPrivateChatDialog = () => {
+    setShowParticipantDialog(true);
+    setPrivateEmail("");
+  };
+
+  /**
+   * Change la conversation active
+   */
+  const switchConversation = async (id: number) => {
     if (id === currentChat?.id) return;
 
-    const chat = conversations.find((c) => c.id === id) || null;
-    setCurrentChat(chat);
-    setShowSidebar(false); // Fermer le sidebar en mode mobile
+    try {
+      setLoading(true);
+
+      // Utilisation du cache si disponible
+      const response = await fetch(`${API_URL}/api/chat/${id}`, {
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        let errMsg = `Erreur serveur: ${response.status}`;
+        try {
+          const errData = await response.json();
+          if (errData && errData.error) errMsg = errData.error;
+        } catch {}
+        throw new Error(errMsg);
+      }
+
+      const fullConversation = await response.json();
+
+      // Mise à jour de l'état et du cache
+      setCurrentChat(fullConversation);
+      setConversations((prevConvs) =>
+        prevConvs.map((conv) =>
+          conv.id === id
+            ? { ...conv, messages: fullConversation.messages }
+            : conv
+        )
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Impossible de charger la conversation"
+      );
+    } finally {
+      setLoading(false);
+      setShowSidebar(false);
+    }
   };
 
-  // Formatter la date pour l'affichage
+  /**
+   * Envoie un message et ajoute la réponse de l'API sans re-fetch toute la discussion
+   */
+  const handleSendMessage = async (retryMessage?: ChatMessage) => {
+    // Si retryMessage est fourni, on retente l'envoi de ce message
+    const messageContent = retryMessage ? retryMessage.content : newMessage.trim();
+    if (!messageContent || !currentChat || !isOnline) {
+      if (!isOnline) setError("Pas de connexion internet");
+      return;
+    }
+
+    setSending(true);
+    if (!retryMessage) setNewMessage("");
+
+    // Utiliser le même id/nonce si retry, sinon générer un nouveau
+    // Correction : nonce doit être un int32 (max 2_147_483_647)
+    const MAX_INT32 = 2_147_483_647;
+    const tempId = retryMessage
+      ? retryMessage.id
+      : Math.floor(Math.random() * MAX_INT32);
+    const userMessage: ChatMessage = {
+      id: tempId,
+      content: messageContent,
+      sendDate: retryMessage ? retryMessage.sendDate : new Date().toISOString(),
+      chatId: currentChat.id,
+      userId: currentUserId,
+      isRead: false,
+    };
+
+    // Ajout optimiste si ce n'est pas un retry
+    if (!retryMessage) {
+      const updatedChat = {
+        ...currentChat,
+        messages: [...(currentChat.messages || []), userMessage],
+      };
+      setCurrentChat(updatedChat);
+    }
+
+    try {
+      if (!API_URL) {
+        throw new Error("API_URL n'est pas défini. Vérifiez votre configuration.");
+      }
+      // Envoi à l'API
+      const response = await fetch(
+        `${API_URL}/api/chat/${currentChat.id}/message`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ content: messageContent, nonce: tempId }),
+        }
+      );
+
+      if (!response.ok) {
+        let errMsg = `Erreur serveur: ${response.status}`;
+        try {
+          const errData = await response.json();
+          if (errData && errData.error) errMsg = errData.error;
+        } catch {}
+        throw new Error(errMsg);
+      }
+
+      // Ajout du message réel retourné par l'API (remplace le message optimiste si même nonce, sinon ajoute)
+      const resp = await response.json();
+      if (!resp.message) {
+        throw new Error("Réponse inattendue de l'API: pas de message retourné");
+      }
+      const apiMessage = resp.message;
+      setCurrentChat((prev) => {
+        if (!prev) return prev;
+        // Retirer le message optimiste si même nonce
+        const filtered = (prev.messages || []).filter(
+          (m) => m.id !== tempId
+        );
+        return {
+          ...prev,
+          messages: [...filtered, apiMessage],
+        };
+      });
+      // Retirer le message des échecs si c'était un retry
+      setFailedMessages((prev) => prev.filter((m) => m.id !== tempId));
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Impossible d'envoyer le message"
+      );
+      // Ajouter le message à la liste des échecs si ce n'est déjà le cas
+      setFailedMessages((prev) => {
+        if (prev.some((m) => m.id === tempId)) return prev;
+        return [...prev, userMessage];
+      });
+      if (!retryMessage) setNewMessage(messageContent); // Restaurer le message en cas d'erreur
+    } finally {
+      setSending(false);
+    }
+  };
+
+  /**
+   * Formatte une date pour l'affichage
+   */
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
-      if (isNaN(date.getTime())) throw new Error("Date invalide");
+      if (isNaN(date.getTime())) return "Date invalide";
 
       return date.toLocaleDateString("fr-FR", {
         day: "numeric",
@@ -219,27 +443,62 @@ export default function ChatPage() {
         hour: "2-digit",
         minute: "2-digit",
       });
-    } catch (e) {
-      console.error("Erreur de formatage de date:", e);
+    } catch {
       return "Date inconnue";
     }
   };
 
+  // Marquer les messages comme lus à l'ouverture de la conversation
+  useEffect(() => {
+    if (!currentChat || !currentUserId) return;
+    // Messages non lus de l'autre utilisateur
+    const unreadIds = (currentChat.messages || [])
+      .filter((msg) => msg.userId !== currentUserId && !msg.isRead)
+      .map((msg) => msg.id);
+    if (unreadIds.length === 0) return;
+    // Appel API pour marquer comme lu
+    fetch(`${API_URL}/api/chat/mark-read`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ chatId: currentChat.id, messageIds: unreadIds }),
+    })
+      .then((res) => {
+        if (res.ok) {
+          // Mettre à jour localement les messages comme lus
+          setCurrentChat((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  messages: prev.messages?.map((msg) =>
+                    unreadIds.includes(msg.id)
+                      ? { ...msg, isRead: true }
+                      : msg
+                  ),
+                }
+              : prev
+          );
+        }
+      })
+      .catch(() => {});
+  }, [currentChat, currentUserId]);
+
+  // Indicateurs d'état de l'interface
+  const isConversationsEmpty = conversations.length === 0;
+  const isMessagesEmpty = !currentChat?.messages?.length;
+  const isInputDisabled = loading || !currentChat || sending || !isOnline;
+
   return (
     <SidebarProvider
-      style={
-        {
-          "--sidebar-width": "calc(var(--spacing) * 72)",
-          "--header-height": "calc(var(--spacing) * 12)",
-        } as React.CSSProperties
-      }
-      className="bg-background text-foreground min-h-screen"
+      style={{ "--sidebar-width": "calc(var(--spacing) * 72)", "--header-height": "calc(var(--spacing) * 12)" } as React.CSSProperties}
+      className="bg-[#0A0A22] text-white h-screen"
     >
       <AppSidebar variant="inset" />
-      <SidebarInset className="h-screen flex flex-col overflow-hidden bg-background text-foreground">
+      <SidebarInset>
         <SiteHeader />
 
         <div className="flex flex-1 h-[calc(100vh-var(--header-height))] overflow-hidden flex-col md:flex-row">
+          {/* Panneau latéral - Liste des conversations */}
           <div
             className={cn(
               "border-r border-border flex flex-col overflow-hidden transition-all duration-300 bg-background text-foreground",
@@ -249,6 +508,7 @@ export default function ChatPage() {
                 : "hidden"
             )}
           >
+            {/* En-tête du panneau latéral */}
             <div className="p-3 border-b border-border flex justify-between items-center shrink-0">
               <div className="flex items-center gap-2">
                 <Button
@@ -261,48 +521,101 @@ export default function ChatPage() {
                 </Button>
                 <h2 className="font-medium">Conversations</h2>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={createNewConversation}
-                disabled={loading}
-                className="h-8 w-8"
-              >
-                <IconPlus className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-1">
+                {/* Bouton nouvelle conversation */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={selectedTab === 'private' ? openPrivateChatDialog : createNewConversation}
+                  disabled={loading || !isOnline}
+                  className="h-8 w-8"
+                >
+                  <IconPlus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
+            {/* Onglets de type de discussion - version shadcn/ui Switch */}
+            <div className="flex justify-center items-center py-2 border-b border-border bg-background">
+              <div className="inline-flex items-center rounded-lg bg-muted p-1 gap-1">
+                <Button
+                  type="button"
+                  variant={selectedTab === 'property' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className={cn(
+                    'rounded-md px-4 font-medium transition-all',
+                    selectedTab === 'property' && 'shadow bg-background text-foreground'
+                  )}
+                  onClick={() => setSelectedTab('property')}
+                  aria-pressed={selectedTab === 'property'}
+                >
+                  Propriétés
+                </Button>
+                <Button
+                  type="button"
+                  variant={selectedTab === 'private' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className={cn(
+                    'rounded-md px-7 font-medium transition-all',
+                    selectedTab === 'private' && 'shadow bg-background text-foreground'
+                  )}
+                  onClick={() => setSelectedTab('private')}
+                  aria-pressed={selectedTab === 'private'}
+                >
+                  Privées
+                </Button>
+              </div>
+            </div>
+
+            {/* Liste des conversations filtrées */}
             <div className="flex-1 overflow-y-auto">
-              {conversations.length > 0 ? (
+              {!filteredConversations.length ? (
+                <div className="p-4 text-center text-sm text-muted-foreground">
+                  {loading ? "Chargement..." : "Aucune conversation"}
+                </div>
+              ) : (
                 <div className="p-2 space-y-1 divide-y divide-border">
-                  {conversations.map((chat) => (
+                  {filteredConversations.map((chat) => (
                     <div
                       key={chat.id}
                       className={cn(
-                        "px-3 py-2 rounded-md cursor-pointer text-sm hover:bg-accent/50",
+                        "px-3 py-2 rounded-md cursor-pointer text-sm",
                         currentChat?.id === chat.id
                           ? "bg-accent text-accent-foreground"
                           : ""
                       )}
                       onClick={() => switchConversation(chat.id)}
                     >
-                      <div className="font-medium truncate">{chat.title}</div>
-                      <div className="text-xs opacity-75 truncate">
-                        {formatDate(chat.updatedAt)}
+                      <div className="font-medium truncate">
+                        {chat.chatType === "property"
+                          ? `Propriété #${chat.propertyId}`
+                          : "Conversation"}
+                      </div>
+                      <div className="text-xs opacity-75 truncate flex items-center gap-2">
+                        {chat.lastMessage ? (
+                          <>
+                            <span>{formatDate(chat.lastMessage.sendDate)}</span>
+                            <span className="ml-1">•</span>
+                            <span className="ml-1 truncate">{chat.lastMessage.content}</span>
+                            {chat.lastMessage.isRead === false && (
+                              <span className="inline-block w-2 h-2 rounded-full bg-primary animate-pulse" title="Non lu"></span>
+                            )}
+                          </>
+                        ) : (
+                          "Nouvelle conversation"
+                        )}
                       </div>
                     </div>
                   ))}
-                </div>
-              ) : (
-                <div className="p-4 text-center text-sm text-muted-foreground">
-                  {loading ? "Chargement..." : "Aucune conversation"}
                 </div>
               )}
             </div>
           </div>
 
+          {/* Zone principale - Messages et saisie */}
           <div className="flex flex-1 flex-col h-full overflow-hidden">
-            <div className="md:hidden p-3 border-b border-border flex items-center shrink-0 bg-card text-foreground">
+            {/* En-tête mobile */}
+            <div className="md:hidden p-3 border-b border-border flex items-center justify-between shrink-0 bg-card text-foreground">
               <Button
                 variant="ghost"
                 size="sm"
@@ -311,15 +624,28 @@ export default function ChatPage() {
               >
                 <IconMenu2 className="h-4 w-4" />
                 <span className="truncate">
-                  {currentChat?.title || "Sélectionner une conversation"}
+                  {currentChat
+                    ? currentChat.chatType === "property"
+                      ? `Propriété #${currentChat.propertyId}`
+                      : "Conversation"
+                    : "Sélectionner une conversation"}
                 </span>
               </Button>
+              {/* Indicateur de connexion mobile */}
+              {isOnline ? (
+                <IconWifi className="h-4 w-4 text-green-400" />
+              ) : (
+                <IconWifiOff className="h-4 w-4 text-red-400" />
+              )}
             </div>
 
+            {/* Zone d'affichage des messages */}
             <div
+              ref={messagesContainerRef}
               className="flex-1 overflow-y-auto p-3 md:p-4 bg-background text-foreground"
               id="messagesContainer"
             >
+              {/* États: Chargement, Erreur, Messages */}
               {loading ? (
                 <div className="flex justify-center items-center h-full">
                   <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
@@ -331,57 +657,118 @@ export default function ChatPage() {
                     variant="outline"
                     onClick={fetchChats}
                     className="flex items-center gap-2"
+                    disabled={!isOnline && error.includes("connexion internet")}
                   >
                     <IconRefresh className="h-4 w-4" />
                     Réessayer
                   </Button>
                 </div>
-              ) : currentChat?.messages?.length ? (
+              ) : !isMessagesEmpty ? (
                 <div className="space-y-3 md:space-y-4 pb-2">
-                  {currentChat.messages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={cn(
-                        "flex items-start gap-2 md:gap-3",
-                        "max-w-[85%] md:max-w-[80%]",
-                        msg.sender === "user" ? "ml-auto flex-row-reverse" : ""
-                      )}
-                    >
-                      <Avatar
-                        className={cn(
-                          "h-7 w-7 md:h-8 md:w-8",
-                          msg.sender === "user" ? "bg-primary" : "bg-secondary"
-                        )}
-                      >
-                        <AvatarFallback>
-                          {msg.sender === "user" ? (
-                            <IconUser className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                          ) : (
-                            <IconRobot className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                  {/* Liste des messages */}
+                  {[...(currentChat.messages || []), ...failedMessages]
+                    .slice()
+                    .sort((a, b) => new Date(a.sendDate).getTime() - new Date(b.sendDate).getTime())
+                    .map((msg) => {
+                      const isFailed = failedMessages.some((m) => m.id === msg.id);
+                      return (
+                        <div
+                          key={msg.id}
+                          className={cn(
+                            "flex items-start gap-2 md:gap-3",
+                            msg.userId === currentUserId ? "ml-auto flex-row-reverse" : ""
                           )}
+                        >
+                          <Avatar
+                            className={cn(
+                              "h-7 w-7 md:h-8 md:w-8",
+                              msg.userId === currentUserId ? "bg-primary" : "bg-secondary"
+                            )}
+                          >
+                            <AvatarFallback>
+                              {msg.userId === currentUserId ? (
+                                <IconUser className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                              ) : (
+                                <IconRobot className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                              )}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div
+                            className={cn(
+                              "rounded-lg p-2 md:p-3 relative",
+                              msg.userId === currentUserId
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-secondary text-secondary-foreground",
+                              isFailed && "border border-destructive"
+                            )}
+                          >
+                            <p className="whitespace-pre-wrap break-words text-sm md:text-base">
+                              {msg.content}
+                            </p>
+                            <div className="flex items-center gap-1 mt-1">
+                              <p className="text-[10px] md:text-xs opacity-75">
+                                {formatDate(msg.sendDate)}
+                              </p>
+                              {/* Indicateur isRead pour les messages de l'utilisateur courant */}
+                              {msg.userId === currentUserId && (
+                                <span
+                                  title={msg.isRead ? 'Lu' : 'Non lu'}
+                                  style={{ display: 'inline-flex', alignItems: 'center', marginLeft: 2 }}
+                                >
+                                  <IconCheck
+                                    className={cn(
+                                      "h-4 w-4 align-middle drop-shadow-sm",
+                                      msg.isRead
+                                        ? "text-primary dark:text-primary"
+                                        : "text-neutral-900 dark:text-neutral-900"
+                                    )}
+                                    aria-label={msg.isRead ? 'Lu' : 'Non lu'}
+                                  />
+                                </span>
+                              )}
+                              {isFailed && (
+                                <span className="text-destructive ml-2">Échec</span>
+                              )}
+                            </div>
+                            {isFailed && (
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                className="mt-1 text-xs py-1 h-7"
+                                onClick={() => handleSendMessage(msg)}
+                                disabled={sending || !isOnline}
+                              >
+                                Réessayer
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                  {/* Indicateur de chargement pendant l'envoi */}
+                  {sending && (
+                    <div className="flex items-start gap-2 md:gap-3">
+                      <Avatar className="h-7 w-7 md:h-8 md:w-8 bg-secondary">
+                        <AvatarFallback>
+                          <IconRobot className="h-3.5 w-3.5 md:h-4 md:w-4" />
                         </AvatarFallback>
                       </Avatar>
-                      <div
-                        className={cn(
-                          "rounded-lg p-2 md:p-3",
-                          msg.sender === "user"
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-secondary text-secondary-foreground"
-                        )}
-                      >
-                        <p className="whitespace-pre-wrap break-words text-sm md:text-base">
-                          {msg.content}
-                        </p>
-                        <p className="text-[10px] md:text-xs opacity-75 mt-1">
-                          {formatDate(msg.timestamp)}
-                        </p>
+                      <div className="rounded-lg p-2 md:p-3 bg-secondary text-secondary-foreground min-w-[60px] flex items-center justify-center">
+                        <div className="flex gap-1">
+                          <div className="w-2 h-2 rounded-full bg-current animate-pulse"></div>
+                          <div className="w-2 h-2 rounded-full bg-current animate-pulse delay-150"></div>
+                          <div className="w-2 h-2 rounded-full bg-current animate-pulse delay-300"></div>
+                        </div>
                       </div>
                     </div>
-                  ))}
+                  )}
+
+                  {/* Élément pour le défilement automatique */}
                   <div ref={messagesEndRef} />
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center h-full text-foreground">
+                <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                   {currentChat ? (
                     <p>Commencez la conversation</p>
                   ) : (
@@ -391,6 +778,7 @@ export default function ChatPage() {
                         variant="outline"
                         className="mt-4"
                         onClick={createNewConversation}
+                        disabled={!isOnline}
                       >
                         Nouvelle conversation
                       </Button>
@@ -400,7 +788,14 @@ export default function ChatPage() {
               )}
             </div>
 
+            {/* Zone de saisie des messages */}
             <div className="border-t border-border p-3 md:p-4 shrink-0 bg-card">
+              {/* Afficher l'erreur en cas de problème */}
+              {error && (
+                <div className="text-destructive text-xs mb-2">{error}</div>
+              )}
+
+              {/* Formulaire d'envoi */}
               <div className="flex items-center gap-2">
                 <Input
                   placeholder="Écrivez votre message..."
@@ -412,12 +807,12 @@ export default function ChatPage() {
                       handleSendMessage();
                     }
                   }}
-                  disabled={loading || !currentChat}
+                  disabled={isInputDisabled}
                   className="flex-1 h-9 md:h-10 text-sm md:text-base"
                 />
                 <Button
-                  onClick={handleSendMessage}
-                  disabled={loading || !newMessage.trim() || !currentChat}
+                  onClick={() => handleSendMessage()}
+                  disabled={isInputDisabled || !newMessage.trim()}
                   className="h-9 md:h-10 px-3 md:px-4 flex-shrink-0"
                   size="sm"
                 >
@@ -429,6 +824,72 @@ export default function ChatPage() {
           </div>
         </div>
       </SidebarInset>
+
+      {/* Modale de saisie d'email pour discussion privée */}
+      <Dialog open={showParticipantDialog} onOpenChange={setShowParticipantDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nouvelle discussion privée</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label className="block text-sm font-medium">Email du participant</label>
+            <Input
+              type="email"
+              placeholder="exemple@domaine.com"
+              value={privateEmail}
+              onChange={e => setPrivateEmail(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={async () => {
+                setShowParticipantDialog(false);
+                if (!privateEmail) return;
+                setLoading(true);
+                try {
+                  const body = {
+                    chatType: "private",
+                    propertyId: null,
+                    participantIds: [currentUserId],
+                    participantEmail: privateEmail,
+                  };
+                  const response = await fetch(`${API_URL}/api/chat/create`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify(body),
+                  });
+                  if (!response.ok) {
+                    let errMsg = `Erreur serveur: ${response.status}`;
+                    try {
+                      const errData = await response.json();
+                      if (errData && errData.error) errMsg = errData.error;
+                    } catch {}
+                    throw new Error(errMsg);
+                  }
+                  const resp = await response.json();
+                  const newChat = resp.chat;
+                  setConversations((prev) => [newChat, ...prev]);
+                  setCurrentChat(newChat);
+                  setShowSidebar(false);
+                } catch (err) {
+                  setError(
+                    err instanceof Error
+                      ? err.message
+                      : "Impossible de créer une conversation"
+                  );
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              disabled={!privateEmail || loading}
+            >
+              Créer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
   );
 }
