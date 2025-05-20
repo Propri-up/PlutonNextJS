@@ -9,12 +9,13 @@ interface RegisterCredentials {
   email: string;
   password: string;
   name?: string;
+  callbackURL?: string;
 }
 
 export function RegisterForm({
   className,
   ...props
-}: React.ComponentProps<"div">) {
+}: React.ComponentProps<"form">) {
   const router = useRouter();
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
@@ -24,7 +25,7 @@ export function RegisterForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Email regex for validation
+  // Email regex pour validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const emailIsValid = emailRegex.test(email);
 
@@ -36,6 +37,7 @@ export function RegisterForm({
       email: emailRef.current?.value || "",
       password: passwordRef.current?.value || "",
       name: nameRef.current?.value || undefined,
+      callbackURL: "https://api.pluton.tools/api/auth/verify-email" // callbackURL public pour passer la validation
     };
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/sign-up/email`, {
@@ -46,9 +48,15 @@ export function RegisterForm({
         credentials: "include",
         body: JSON.stringify(credentials),
       });
+      const data = await res.json();
       if (!res.ok) {
-        const data = await res.json();
         setError(data?.message || "Erreur lors de l'inscription");
+        setLoading(false);
+        return;
+      }
+      // Si email non vérifié, affiche un message
+      if (!data.user?.emailVerified) {
+        setError("Un email de vérification a été envoyé. Merci de vérifier votre boîte mail.");
         setLoading(false);
         return;
       }

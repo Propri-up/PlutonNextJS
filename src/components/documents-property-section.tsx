@@ -17,25 +17,12 @@ export function DocumentsPropertySection({ propertyId }: { propertyId: number })
       setLoading(true);
       setError(null);
       try {
-        // Simule des documents si aucun n'est trouvé
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
         const res = await fetch(`${apiUrl}/api/documents?propertyId=${propertyId}`, { credentials: "include" });
         let docs = [];
         if (res.ok) {
           const data = await res.json();
           docs = data.documents || [];
-        }
-        // Si aucun document, injecte un faux document PDF
-        if (!docs.length) {
-          docs = [
-            {
-              id: 1,
-              title: "Bail locatif (exemple)",
-              type: "PDF",
-              createdAt: new Date().toISOString(),
-              url: "/dummy.pdf", // Utilise un vrai PDF pour la démo
-            },
-          ];
         }
         setDocuments(docs);
       } catch (e: any) {

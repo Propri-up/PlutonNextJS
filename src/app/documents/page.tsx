@@ -18,45 +18,52 @@ export default function DocumentsPage() {
   const [showPreview, setShowPreview] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<string | null>(null);
-
-  const filteredDocuments = documents.filter((doc) => {
-    const matchesSearch =
-      doc.title?.toLowerCase().includes(search.toLowerCase()) ||
-      doc.name?.toLowerCase().includes(search.toLowerCase());
-    const matchesType = filter ? (doc.type?.toLowerCase() === filter) : true;
-    return matchesSearch && matchesType;
-  });
+  const [docTypes, setDocTypes] = useState<any[]>([]);
 
   useEffect(() => {
     setLoading(true);
     setError(null);
-    // 3 documents démo seulement : contrat, facture, quittance
-    const demoDocs = [
-      {
-        id: 1,
-        title: "Contrat de location",
-        type: "contrat",
-        createdAt: new Date(Date.now() - 2 * 86400000).toISOString(),
-        url: "/dummy.pdf",
-      },
-      {
-        id: 2,
-        title: "Facture de loyer",
-        type: "facture",
-        createdAt: new Date(Date.now() - 1 * 86400000).toISOString(),
-        url: "/dummy.pdf",
-      },
-      {
-        id: 3,
-        title: "Quittance de loyer",
-        type: "quittance",
-        createdAt: new Date().toISOString(),
-        url: "/dummy.pdf",
-      },
-    ];
-    setDocuments(demoDocs);
-    setLoading(false);
+    const fetchDocs = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+        // Récupère tous les documents
+        const res = await fetch(`${apiUrl}/api/documents`, { credentials: "include" });
+        if (!res.ok) throw new Error("Erreur lors du chargement des documents");
+        const data = await res.json();
+        // On suppose que data.documents est un tableau
+        setDocuments(data.documents || []);
+      } catch (e: any) {
+        setError(e.message || "Erreur lors du chargement des documents");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDocs();
   }, []);
+
+  useEffect(() => {
+    // Récupère les types de documents pour le filtre
+    const fetchTypes = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+        const res = await fetch(`${apiUrl}/api/documents/types`, { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          // On suppose que data.types est un tableau de types
+          setDocTypes(data.types || []);
+        }
+      } catch {}
+    };
+    fetchTypes();
+  }, []);
+
+  const filteredDocuments = documents.filter((doc) => {
+    const matchesSearch =
+      (doc.title?.toLowerCase().includes(search.toLowerCase()) ||
+        doc.name?.toLowerCase().includes(search.toLowerCase()));
+    const matchesType = filter ? (doc.type?.toLowerCase() === filter) : true;
+    return matchesSearch && matchesType;
+  });
 
   return (
     <SidebarProvider
@@ -90,9 +97,9 @@ export default function DocumentsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les types</SelectItem>
-                <SelectItem value="contrat">Contrat</SelectItem>
-                <SelectItem value="facture">Facture</SelectItem>
-                <SelectItem value="quittance">Quittance</SelectItem>
+                {docTypes.length > 0 ? docTypes.map((type: any) => (
+                  <SelectItem key={type} value={type.toLowerCase()}>{type}</SelectItem>
+                )) : null}
               </SelectContent>
             </Select>
           </div>
@@ -113,7 +120,7 @@ export default function DocumentsPage() {
                   <div className="flex flex-col gap-1 px-7 pt-5 pb-2">
                     <div className="font-semibold truncate text-lg text-foreground mb-1 group-hover:text-primary transition-colors">{doc.title || doc.name || `Document #${doc.id}`}</div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span className="capitalize font-medium bg-muted/60 px-2 py-0.5 rounded">{doc.type || "-"}</span>
+                      <span className="capitalize font-medium bg-muted/60 px-2 py-0.5 rounded">{doc.type || doc.documentType || "-"}</span>
                       <span className="ml-auto">{doc.createdAt ? new Date(doc.createdAt).toLocaleDateString("fr-FR") : "-"}</span>
                     </div>
                   </div>

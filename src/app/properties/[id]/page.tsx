@@ -10,15 +10,15 @@ import Link from 'next/link';
 import { AppSidebar } from '@/components/app-sidebar';
 import { SiteHeader } from '@/components/site-header';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
-import { BarChart, Bar, Tooltip, ResponsiveContainer, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { DocumentsPropertySection } from '@/components/documents-property-section';
+import { PropertyContractsSection } from '@/components/property-contracts-section';
 
 export default function PropertyDetailsPage() {
   const router = useRouter();
   const { id } = useParams();
   const [property, setProperty] = useState<any>(null);
   const [tenants, setTenants] = useState<any[]>([]);
+  const [contracts, setContracts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,17 +30,29 @@ export default function PropertyDetailsPage() {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
         // Get property details
         const resProp = await fetch(`${apiUrl}/api/properties/${id}`, { credentials: 'include' });
-        if (!resProp.ok) throw new Error("Erreur lors du chargement du bien");
         const dataProp = await resProp.json();
+        console.log('Property details:', dataProp);
         setProperty(dataProp.property);
         // Get tenants for this property
         const resTenants = await fetch(`${apiUrl}/api/contracts/property/${id}/tenants`, { credentials: 'include' });
+        const dataTenants = await resTenants.json();
+        console.log('Tenants:', dataTenants);
         if (resTenants.ok) {
-          const dataTenants = await resTenants.json();
           setTenants(dataTenants.tenants || []);
         } else {
           setTenants([]);
         }
+        // Get contracts for this property
+        const resContracts = await fetch(`${apiUrl}/api/properties/${id}/contracts`, { credentials: 'include' });
+        const dataContracts = await resContracts.json();
+        console.log('Contracts:', dataContracts);
+        // Pour chaque contrat, va chercher les documents
+        const contractsWithDocs = await Promise.all((dataContracts.contracts || []).map(async (c: any) => {
+          const resDocs = await fetch(`${apiUrl}/api/contracts/${c.contract.id}/documents`, { credentials: 'include' });
+          const dataDocs = await resDocs.json();
+          return { ...c, documents: dataDocs.documents || [] };
+        }));
+        setContracts(contractsWithDocs);
       } catch (e: any) {
         setError(e.message || "Erreur lors du chargement des données");
       } finally {
@@ -62,26 +74,14 @@ export default function PropertyDetailsPage() {
   const formatPrice = (price: number) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(price);
   const formatDate = (date: string) => date ? new Date(date).toLocaleDateString('fr-FR') : '';
 
-  // Simule un historique de loyer/charges sur 12 mois pour le graph (à remplacer par vrai data si dispo)
-  const now = new Date();
-  const months = Array.from({ length: 12 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
-    return d;
-  });
-  const monthLabels = months.map(d => d.toLocaleString('fr-FR', { month: 'short' }));
-  const barData = property ? months.map((d, i) => ({
-    month: monthLabels[i],
-    rent: property.rent || 0,
-    charges: property.estimatedCharges || 0,
-    net: (property.rent || 0) - (property.estimatedCharges || 0),
-  })) : [];
-
   // Met à jour le titre de la page (navbar) avec le nom/adresse du bien
   useEffect(() => {
     if (property && typeof document !== 'undefined') {
       document.title = property.address;
     }
   }, [property]);
+
+  if (!property) return null;
 
   return (
     <SidebarProvider
@@ -120,7 +120,11 @@ export default function PropertyDetailsPage() {
                 <div className="flex gap-2 flex-wrap">
                   <Button variant="secondary" size="sm"><IconEdit className="h-4 w-4 mr-1" />Modifier</Button>
                   <Button variant="destructive" size="sm"><IconTrash className="h-4 w-4 mr-1" />Supprimer</Button>
-                  <Button asChild variant="default" size="sm"><Link href="/chat"><IconMessageCircle className="h-4 w-4 mr-1" />Chat</Link></Button>
+                  <Button asChild variant="default" size="sm">
+                    <Link href={`/chat?propertyId=${property.id}`} prefetch={false}>
+                      <IconMessageCircle className="h-4 w-4 mr-1" />Chat
+                    </Link>
+                  </Button>
                 </div>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full mt-2">
@@ -169,30 +173,51 @@ export default function PropertyDetailsPage() {
                   </CardContent>
                 </Card>
               </div>
-              {/* Graphique loyers/charges/net */}
-              <Card className="w-full bg-card">
+              {/* Résumé financier du bien - version améliorée */}
+              <Card className="w-full bg-card/90 shadow-lg border border-border rounded-2xl">
                 <CardHeader>
-                  <CardTitle>Évolution mensuelle (simulation)</CardTitle>
+                  <CardTitle className="text-lg font-semibold">Résumé financier</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={260}>
-                    <BarChart data={barData} className="text-white">
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                      <XAxis dataKey="month" stroke="var(--muted-foreground)" />
-                      <YAxis stroke="var(--muted-foreground)" />
-                      <Tooltip
-                        contentStyle={{ background: "var(--card)", border: "none", color: "var(--foreground)" }}
-                        cursor={{ fill: "var(--muted)", opacity: 0.15 }}
-                        labelStyle={{ color: "var(--foreground)" }}
-                      />
-                      <Bar dataKey="rent" fill="var(--primary)" radius={[6, 6, 0, 0]} barSize={24} name="Loyer" />
-                      <Bar dataKey="charges" fill="#f87171" radius={[6, 6, 0, 0]} barSize={24} name="Charges" />
-                      <Bar dataKey="net" fill="#34d399" radius={[6, 6, 0, 0]} barSize={24} name="Net" />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
+                    <div className="flex flex-col items-center">
+                      <span className="text-muted-foreground text-sm mb-1">Loyer annuel</span>
+                      <span className="font-extrabold text-2xl text-primary">{formatPrice((property.rent || 0) * 12)}</span>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <span className="text-muted-foreground text-sm mb-1">Charges annuelles</span>
+                      <span className="font-extrabold text-2xl text-red-400">{formatPrice((property.estimatedCharges || 0) * 12)}</span>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <span className="text-muted-foreground text-sm mb-1">Net annuel</span>
+                      <span className="font-extrabold text-2xl text-green-400">{formatPrice(((property.rent || 0) - (property.estimatedCharges || 0)) * 12)}</span>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
-              <DocumentsPropertySection propertyId={property.id} />
+              {/* Gestion des erreurs et messages utilisateur - version robuste */}
+              {error && (
+                <div className="w-full bg-red-900/90 text-red-200 border border-red-700 rounded-lg p-4 my-2 text-center animate-in fade-in shadow-lg">
+                  <span className="font-bold">Erreur :</span> {error}
+                  <div className="mt-2">
+                    <Button variant="outline" size="sm" onClick={() => window.location.reload()}>Réessayer</Button>
+                  </div>
+                </div>
+              )}
+              {!loading && !error && !property && (
+                <div className="w-full bg-yellow-900/90 text-yellow-200 border border-yellow-700 rounded-lg p-4 my-2 text-center animate-in fade-in shadow-lg">
+                  Impossible de charger les informations du bien. Veuillez réessayer plus tard.
+                  <div className="mt-2">
+                    <Button variant="outline" size="sm" onClick={() => window.location.reload()}>Réessayer</Button>
+                  </div>
+                </div>
+              )}
+              {loading && (
+                <div className="w-full bg-muted text-muted-foreground rounded-lg p-4 my-2 text-center animate-pulse shadow-lg">
+                  Chargement des données du bien en cours...
+                </div>
+              )}
+              <PropertyContractsSection propertyId={property.id} />
             </>
           ) : null}
         </div>
