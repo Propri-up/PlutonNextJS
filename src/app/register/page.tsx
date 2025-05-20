@@ -1,5 +1,6 @@
 "use client"
 import { RegisterForm } from "@/components/register-form"
+import { ThemeSwitcher } from "@/components/theme-switcher"
 
 export default function RegisterPage() {
   return (
@@ -19,10 +20,14 @@ export default function RegisterPage() {
       </div>
       {/* Right side: form */}
       <div className="flex flex-1 flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-background relative">
-        {/* Register/Login switcher in top right */}
-        <div className="absolute top-6 right-6">
+        {/* Register/Login switcher en haut à droite du bloc form, avec ThemeSwitcher aligné */}
+        <div className="absolute top-6 right-6 md:right-8 lg:right-12 flex items-center gap-4">
           <span className="text-sm text-muted-foreground">Déjà un compte ? </span>
           <a href="/login" className="text-sm font-medium text-primary hover:underline">Se connecter</a>
+          {/* Switcher thème en haut à droite, bien séparé */}
+          <div>
+            <ThemeSwitcher />
+          </div>
         </div>
         <div className="w-full max-w-md space-y-8">
           <div className="bg-card rounded-2xl shadow p-8 border border-border">

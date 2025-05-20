@@ -1,9 +1,11 @@
 "use client"
 import { LoginForm } from "@/components/login-form"
+import { ThemeSwitcher } from "@/components/theme-switcher"
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-background text-foreground">
+    <div className="min-h-screen flex flex-col md:flex-row bg-foreground text-foreground relative">
+
       {/* Left side: logo + quote */}
       <div className="hidden md:flex flex-col justify-between w-1/2 bg-muted px-12 py-10">
         <div>
@@ -19,10 +21,14 @@ export default function LoginPage() {
       </div>
       {/* Right side: form */}
       <div className="flex flex-1 flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-background relative">
-        {/* Login/Sign up switcher in top right */}
-        <div className="absolute top-6 right-6">
+        {/* Login/Sign up switcher en haut à droite du bloc form, mais avec un padding à droite pour éviter le chevauchement */}
+        <div className="absolute top-6 right-6 md:right-8 lg:right-12 flex items-center gap-4">
           <span className="text-sm text-muted-foreground">Pas de compte ? </span>
           <a href="/register" className="text-sm font-medium text-primary hover:underline">Créer un compte</a>
+                {/* Switcher thème en haut à droite, bien séparé */}
+      <div className=" top-6 right-6">
+        <ThemeSwitcher />
+      </div>
         </div>
         <div className="w-full max-w-md space-y-8">
           <div className="bg-card rounded-2xl shadow p-8 border border-border">

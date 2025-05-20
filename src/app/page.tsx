@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ThemeSwitcher } from "@/components/theme-switcher";
 
 // Composant amélioré avec une meilleure compatibilité entre navigateurs
 const AnimatedPropertyType: React.FC<{ word: string }> = ({ word }) => {
@@ -50,14 +51,14 @@ const AnimatedPropertyType: React.FC<{ word: string }> = ({ word }) => {
 
   return (
     <motion.span
-      className="bg-gradient-to-r from-[#3461FF] to-[#8454EB] text-transparent bg-clip-text inline-block"
+      className="bg-gradient-to-r from-sidebar-primary to-sidebar-accent text-transparent bg-clip-text inline-block"
       variants={container}
       initial="hidden"
       animate="visible"
       exit="exit"
       style={{
         display: "inline-block",
-        color: '#8454EB', // fallback for browsers without bg-clip:text, matches purple
+        color: 'var(--sidebar-primary)', // fallback for browsers without bg-clip:text
         textShadow: '0 2px 8px #222a',
         backgroundClip: 'text',
         WebkitBackgroundClip: 'text',
@@ -102,9 +103,9 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#0A0A22] text-white overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-background text-foreground overflow-hidden">
       {/* En-tête avec effet de transparence au défilement */}
-      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? "bg-[#0A0A22]/90 backdrop-blur-md py-3" : "bg-transparent py-5"}`}>
+      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? "bg-background/90 backdrop-blur-md py-3" : "bg-transparent py-5"}`}>
         <div className="max-w-7xl mx-auto flex justify-between items-center px-6">
           <div className="flex items-center space-x-3">
             <Image src="/logo.png" alt="Logo" width={40} height={40} priority className="rounded-xl" />
@@ -112,7 +113,7 @@ export default function Home() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="text-2xl font-bold tracking-tight"
+              className="text-2xl font-bold tracking-tight text-primary"
             >
               Pluton
             </motion.h1>
@@ -120,7 +121,7 @@ export default function Home() {
 
           {/* Menu mobile */}
           <button
-            className="md:hidden p-2 rounded-full bg-white/10 hover:bg-white/20"
+            className="md:hidden p-2 rounded-full bg-muted/80 hover:bg-primary/20"
             onClick={() => setMenuOpen(!menuOpen)}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -141,7 +142,7 @@ export default function Home() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.1 * i }}
               >
-                <Link href={item === "Fonctionnalités" ? "#features" : item === "Télécharger" ? "#download" : "/login"} className="text-gray-300 hover:text-white transition-colors">
+                <Link href={item === "Fonctionnalités" ? "#features" : item === "Télécharger" ? "#download" : "/login"} className="text-foreground hover:text-primary transition-colors">
                   {item}
                 </Link>
               </motion.div>
@@ -153,10 +154,14 @@ export default function Home() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              <Link href="/login" className="bg-gradient-to-r from-[#3461FF] to-[#8454EB] hover:opacity-90 text-white font-medium py-2 px-6 rounded-full shadow-lg transition-all duration-300">
+              <Link href="/login" className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground font-medium py-2 px-6 rounded-full shadow-lg transition-all duration-200 min-w-8 ease-linear">
                 Connexion
               </Link>
             </motion.div>
+            <div className="ml-2 flex items-center">
+              {/* Bouton de changement de thème */}
+              <ThemeSwitcher />
+            </div>
           </nav>
         </div>
 
@@ -170,11 +175,11 @@ export default function Home() {
               transition={{ duration: 0.3 }}
               className="md:hidden px-6 overflow-hidden"
             >
-              <div className="flex flex-col space-y-4 bg-[#171733]/80 backdrop-blur-md rounded-2xl p-4 mt-2">
-                <Link href="#download" className="text-gray-300 hover:text-white transition-colors px-4 py-2">
+              <div className="flex flex-col space-y-4 bg-muted/90 backdrop-blur-md rounded-2xl p-4 mt-2">
+                <Link href="#download" className="text-muted-foreground hover:text-primary transition-colors px-4 py-2">
                   Télécharger
                 </Link>
-                <Link href="/login" className="bg-gradient-to-r from-[#3461FF] to-[#8454EB] hover:opacity-90 text-white font-medium py-2 px-4 rounded-full shadow-lg">
+                <Link href="/login" className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground font-medium py-2 px-4 rounded-full shadow-lg transition-all duration-200 min-w-8 ease-linear">
                   Inscription
                 </Link>
               </div>
@@ -192,7 +197,7 @@ export default function Home() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.7 }}
-                className="inline-block bg-white/10 backdrop-blur-md rounded-full px-4 py-2 text-sm"
+                className="inline-block bg-primary/10 backdrop-blur-md rounded-full px-4 py-2 text-sm text-primary"
               >
                 ✨ Simplifiez la gestion immobilière
               </motion.div>
@@ -200,7 +205,7 @@ export default function Home() {
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.2 }}
-                className="text-5xl md:text-6xl font-bold tracking-tight leading-tight"
+                className="text-5xl md:text-6xl font-bold tracking-tight leading-tight text-sidebar-primary dark:text-sidebar-primary-foreground"
               >
                 Gérez vos{" "}
                 <AnimatePresence mode="wait">
@@ -220,7 +225,7 @@ export default function Home() {
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.4 }}
-                className="text-xl md:text-2xl text-gray-300 leading-relaxed"
+                className="text-xl md:text-2xl text-muted-foreground leading-relaxed"
               >
                 Optimisez la gestion de vos biens immobiliers avec Pluton. Suivi des locations, automatisation, et bien plus en un seul endroit.
               </motion.p>
@@ -232,7 +237,7 @@ export default function Home() {
               className="flex flex-col sm:flex-row gap-4 mt-8"
             >
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Link href="/register" className="bg-gradient-to-r from-[#3461FF] to-[#8454EB] hover:opacity-90 text-white font-medium py-3 px-8 rounded-full shadow-lg flex items-center justify-center group transition-all duration-300">
+                <Link href="/register" className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground font-medium py-3 px-8 rounded-full shadow-lg flex items-center justify-center group transition-all duration-200 min-w-8 ease-linear">
                   Commencer maintenant
                   <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" size={20} />
                 </Link>
@@ -250,7 +255,7 @@ export default function Home() {
               }}
               className="mt-20 w-full relative"
             >
-              <div className="absolute -inset-10 bg-gradient-to-r from-[#3461FF]/20 to-[#8454EB]/20 rounded-full blur-3xl"></div>
+              <div className="absolute -inset-10 bg-primary/20 rounded-full blur-3xl"></div>
             </motion.div>
           </div>
         </section>
@@ -264,11 +269,11 @@ export default function Home() {
             transition={{ duration: 0.8 }}
             className="text-center mb-20"
           >
-            <div className="inline-block bg-white/10 backdrop-blur-md rounded-full px-4 py-2 text-sm mb-4">
+            <div className="inline-block bg-sidebar-accent/20 dark:bg-sidebar-accent/40 backdrop-blur-md rounded-full px-4 py-2 text-sm mb-4 text-sidebar-primary dark:text-sidebar-primary-foreground">
               💎 Fonctionnalités
             </div>
-            <h2 className="text-4xl font-bold mb-6">Tout ce dont vous avez besoin</h2>
-            <p className="text-xl text-gray-300 max-w-2xl mx-auto">
+            <h2 className="text-4xl font-bold mb-6 text-sidebar-primary dark:text-sidebar-primary-foreground">Tout ce dont vous avez besoin</h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               Des outils puissants pour une gestion immobilière sans effort
             </p>
           </motion.div>
@@ -301,7 +306,7 @@ export default function Home() {
                   y: -10,
                   boxShadow: "0 20px 25px -5px rgba(52, 97, 255, 0.1), 0 10px 10px -5px rgba(52, 97, 255, 0.04)" 
                 }}
-                className="bg-[#171733] border border-white/10 rounded-3xl p-8 hover:border-[#3461FF]/50 transition-all duration-300 text-center"
+                className="bg-card border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300 text-center"
               >
                 <motion.div 
                   className="text-3xl mb-6 flex justify-center"
@@ -310,11 +315,11 @@ export default function Home() {
                 >
                   {feature.icon}
                 </motion.div>
-                <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
-                <p className="text-gray-300 mb-6">{feature.description}</p>
+                <h3 className="text-xl font-bold mb-3 text-foreground">{feature.title}</h3>
+                <p className="text-muted-foreground mb-6">{feature.description}</p>
                 <div className="flex justify-center">
                   <motion.div whileHover={{ x: 5 }} className="group">
-                    <Link href="#" className="flex items-center text-[#3461FF] font-medium">
+                    <Link href="#" className="flex items-center text-primary font-medium">
                       En savoir plus <ChevronRight size={16} className="ml-1 group-hover:translate-x-1 transition-transform" />
                     </Link>
                   </motion.div>
@@ -331,7 +336,7 @@ export default function Home() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-100px" }}
             transition={{ duration: 0.8 }}
-            className="bg-gradient-to-br from-[#171733] to-[#1D1D42] rounded-3xl p-10 md:p-16 border border-white/10 shadow-xl text-center md:text-left relative overflow-hidden"
+            className="bg-card rounded-3xl p-10 md:p-16 border border-border shadow-xl text-center md:text-left relative overflow-hidden"
           >
             {/* Éléments décoratifs d'arrière-plan */}
             <motion.div
@@ -344,7 +349,7 @@ export default function Home() {
                 repeat: Infinity,
                 ease: "linear"
               }}
-              className="absolute -top-40 -right-40 w-96 h-96 bg-[#3461FF]/10 rounded-full blur-3xl"
+              className="absolute -top-40 -right-40 w-96 h-96 bg-primary/10 rounded-full blur-3xl"
             />
             
             <div className="grid md:grid-cols-2 gap-12 items-center relative z-10">
@@ -354,7 +359,7 @@ export default function Home() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.6 }}
-                  className="inline-block bg-white/10 backdrop-blur-md rounded-full px-4 py-2 text-sm mb-6"
+                  className="inline-block bg-sidebar-accent/20 dark:bg-sidebar-accent/40 backdrop-blur-md rounded-full px-4 py-2 text-sm mb-6 text-sidebar-primary dark:text-sidebar-primary-foreground"
                 >
                   📱 Mobile App
                 </motion.div>
@@ -363,7 +368,7 @@ export default function Home() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.6, delay: 0.2 }}
-                  className="text-4xl font-bold mb-6"
+                  className="text-4xl font-bold mb-6 text-sidebar-primary dark:text-sidebar-primary-foreground"
                 >
                   Téléchargez l'application
                 </motion.h2>
@@ -372,7 +377,7 @@ export default function Home() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.6, delay: 0.3 }}
-                  className="text-xl text-gray-300 mb-8"
+                  className="text-xl text-muted-foreground mb-8"
                 >
                   Accédez à Pluton où que vous soyez, sur tous vos appareils. Gérez vos biens immobiliers en déplacement.
                 </motion.p>
@@ -383,22 +388,7 @@ export default function Home() {
                   transition={{ duration: 0.6, delay: 0.4 }}
                   className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 justify-center md:justify-start"
                 >
-                  <motion.a 
-                    href="#" 
-                    whileHover={{ scale: 1.05 }} 
-                    whileTap={{ scale: 0.95 }}
-                    className="transition-transform duration-300"
-                  >
-                    <Image src="/google-play-badge.png" alt="Télécharger pour Android" width={180} height={45} />
-                  </motion.a>
-                  <motion.a 
-                    href="#" 
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="transition-transform duration-300"
-                  >
-                    <Image src="/app-store-badge.svg" alt="Télécharger pour iOS" width={180} height={45} />
-                  </motion.a>
+                  {/* Place download buttons here if needed */}
                 </motion.div>
               </div>
               <motion.div 
@@ -413,34 +403,14 @@ export default function Home() {
                 }}
                 className="flex justify-center"
               >
-                <div className="relative">
-                  <motion.div
-                    animate={{
-                      y: [0, -10, 0],
-                      rotate: [0, 2, 0, -2, 0]
-                    }}
-                    transition={{
-                      duration: 6,
-                      ease: "easeInOut",
-                      repeat: Infinity
-                    }}
-                  >
-                    <Image 
-                      src="/logo.png" 
-                      alt="Pluton App Mobile" 
-                      width={250} 
-                      height={500}
-                      className="rounded-3xl shadow-2xl border border-white/20" 
-                    />
-                  </motion.div>
-                </div>
+                {/* Place illustration here if needed */}
               </motion.div>
             </div>
           </motion.div>
         </section>
       </main>
 
-      <footer className="bg-[#0D0D28] border-t border-white/10 py-16 px-6 mt-12 text-center md:text-left">
+      <footer className="bg-card border-t border-border py-16 px-6 mt-12 text-center md:text-left text-foreground">
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-4 gap-12">
             <motion.div
@@ -452,9 +422,9 @@ export default function Home() {
             >
               <div className="flex items-center space-x-3 justify-center md:justify-start">
                 <Image src="/logo.png" alt="Logo" width={40} height={40} className="rounded-xl" />
-                <span className="text-xl font-bold">Pluton</span>
+                <span className="text-xl font-bold text-foreground">Pluton</span>
               </div>
-              <p className="text-gray-400">
+              <p className="text-muted-foreground">
                 La solution moderne pour la gestion immobilière.
               </p>
             </motion.div>
@@ -492,11 +462,11 @@ export default function Home() {
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, delay: 0.1 * (idx + 1) }}
               >
-                <h3 className="text-lg font-semibold mb-4">{column.title}</h3>
+                <h3 className="text-lg font-semibold mb-4 text-foreground">{column.title}</h3>
                 <ul className="space-y-3">
                   {column.links.map((link) => (
                     <motion.li key={link.name} whileHover={{ x: 3 }}>
-                      <Link href={link.href} className="text-gray-400 hover:text-white transition-colors">
+                      <Link href={link.href} className="text-muted-foreground hover:text-foreground transition-colors">
                         {link.name}
                       </Link>
                     </motion.li>
@@ -511,9 +481,9 @@ export default function Home() {
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 1, delay: 0.5 }}
-            className="border-t border-white/10 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center"
+            className="border-t border-border mt-12 pt-8 flex flex-col md:flex-row justify-between items-center"
           >
-            <p className="text-gray-400">© 2025 Pluton. Tous droits réservés.</p>
+            <p className="text-muted-foreground">© 2025 Pluton. Tous droits réservés.</p>
             <div className="flex space-x-6 mt-4 md:mt-0">
               {[
                 {
@@ -547,7 +517,7 @@ export default function Home() {
                   whileHover={{ y: -3 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <Link href="#" className="text-gray-400 hover:text-white transition-colors">
+                  <Link href="#" className="text-muted-foreground hover:text-foreground transition-colors">
                     {item.icon}
                   </Link>
                 </motion.div>
