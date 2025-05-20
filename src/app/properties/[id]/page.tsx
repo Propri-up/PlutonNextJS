@@ -12,6 +12,16 @@ import { SiteHeader } from '@/components/site-header';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { PropertyContractsSection } from '@/components/property-contracts-section';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
+// Helper pour afficher les erreurs réseau/fetch
+function getErrorMessage(error: any): string {
+  if (!error) return "Erreur inconnue";
+  if (typeof error === "string") return error;
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error.message) return error.message;
+  return JSON.stringify(error);
+}
 
 export default function PropertyDetailsPage() {
   const router = useRouter();
@@ -22,6 +32,22 @@ export default function PropertyDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [editOpen, setEditOpen] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<any>({});
+
+  const [createContractOpen, setCreateContractOpen] = useState(false);
+  const [contractLoading, setContractLoading] = useState(false);
+  const [contractError, setContractError] = useState<string | null>(null);
+  const [contractSuccess, setContractSuccess] = useState<string | null>(null);
+  const [contractForm, setContractForm] = useState({
+    startDate: '',
+    endDate: '',
+    monthlyRent: property?.rent || '',
+    tenantEmails: '', // comma separated
+  });
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -31,12 +57,10 @@ export default function PropertyDetailsPage() {
         // Get property details
         const resProp = await fetch(`${apiUrl}/api/properties/${id}`, { credentials: 'include' });
         const dataProp = await resProp.json();
-        console.log('Property details:', dataProp);
         setProperty(dataProp.property);
         // Get tenants for this property
         const resTenants = await fetch(`${apiUrl}/api/contracts/property/${id}/tenants`, { credentials: 'include' });
         const dataTenants = await resTenants.json();
-        console.log('Tenants:', dataTenants);
         if (resTenants.ok) {
           setTenants(dataTenants.tenants || []);
         } else {
@@ -45,8 +69,6 @@ export default function PropertyDetailsPage() {
         // Get contracts for this property
         const resContracts = await fetch(`${apiUrl}/api/properties/${id}/contracts`, { credentials: 'include' });
         const dataContracts = await resContracts.json();
-        console.log('Contracts:', dataContracts);
-        // Pour chaque contrat, va chercher les documents
         const contractsWithDocs = await Promise.all((dataContracts.contracts || []).map(async (c: any) => {
           const resDocs = await fetch(`${apiUrl}/api/contracts/${c.contract.id}/documents`, { credentials: 'include' });
           const dataDocs = await resDocs.json();
@@ -61,6 +83,181 @@ export default function PropertyDetailsPage() {
     };
     if (id) fetchData();
   }, [id]);
+
+  useEffect(() => {
+    if (property) {
+      setEditForm({
+        address: property.address || "",
+        surfaceArea: property.surfaceArea || "",
+        rent: property.rent || "",
+        propertyTypeId: property.propertyTypeId || 1,
+        numberOfBedrooms: property.numberOfBedrooms || "",
+        estimatedCharges: property.estimatedCharges || "",
+        description: property.description || "",
+        contractId: property.contractId || "",
+        carpetArea: property.carpetArea || "",
+        plotArea: property.plotArea || "",
+        numberOfBathrooms: property.numberOfBathrooms || "",
+        numberOfFloors: property.numberOfFloors || "",
+        propertyOnFloor: property.propertyOnFloor || "",
+      });
+    }
+  }, [property]);
+
+  useEffect(() => {
+    if (contracts && contracts.length > 0) {
+      // Affiche les contrats dans la console pour debug
+      // (affiche aussi les documents liés à chaque contrat)
+      // eslint-disable-next-line no-console
+      console.log("CONTRACTS:", contracts);
+    }
+  }, [contracts]);
+
+  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setEditForm({ ...editForm, [e.target.name]: e.target.value });
+  };
+
+  const handleEditProperty = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditLoading(true);
+    setEditError(null);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      if (!apiUrl) throw new Error("API_URL non défini");
+      if (!property?.id) throw new Error("ID du bien manquant");
+      const body: any = {
+        address: editForm.address,
+        surfaceArea: Number(editForm.surfaceArea),
+        rent: Number(editForm.rent),
+        propertyTypeId: Number(editForm.propertyTypeId),
+      };
+      if (editForm.numberOfBedrooms) body.numberOfBedrooms = Number(editForm.numberOfBedrooms);
+      if (editForm.estimatedCharges) body.estimatedCharges = Number(editForm.estimatedCharges);
+      if (editForm.description) body.description = editForm.description;
+      if (editForm.contractId) body.contractId = editForm.contractId;
+      if (editForm.carpetArea) body.carpetArea = Number(editForm.carpetArea);
+      if (editForm.plotArea) body.plotArea = Number(editForm.plotArea);
+      if (editForm.numberOfBathrooms) body.numberOfBathrooms = Number(editForm.numberOfBathrooms);
+      if (editForm.numberOfFloors) body.numberOfFloors = Number(editForm.numberOfFloors);
+      if (editForm.propertyOnFloor) body.propertyOnFloor = editForm.propertyOnFloor;
+      let res;
+      try {
+        res = await fetch(`${apiUrl}/api/properties/${property.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(body),
+        });
+      } catch (err) {
+        throw new Error("Erreur réseau : " + getErrorMessage(err));
+      }
+      if (!res.ok) {
+        let errorMsg = `Erreur API (${res.status})`;
+        try {
+          const data = await res.json();
+          if (data && data.error) errorMsg = data.error;
+        } catch (err) {
+          errorMsg += ' (réponse non JSON)';
+        }
+        throw new Error(errorMsg);
+      }
+      setEditOpen(false);
+      window.location.reload();
+    } catch (e: any) {
+      setEditError(getErrorMessage(e));
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm("Êtes-vous sûr de vouloir supprimer ce bien ?")) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      if (!apiUrl) throw new Error("API_URL non défini");
+      if (!property?.id) throw new Error("ID du bien manquant");
+      let res;
+      try {
+        res = await fetch(`${apiUrl}/api/properties/${property.id}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+      } catch (err) {
+        throw new Error("Erreur réseau : " + getErrorMessage(err));
+      }
+      if (!res.ok) {
+        let errorMsg = `Erreur API (${res.status})`;
+        try {
+          const data = await res.json();
+          if (data && data.error) errorMsg = data.error;
+        } catch (err) {
+          errorMsg += ' (réponse non JSON)';
+        }
+        throw new Error(errorMsg);
+      }
+      router.push('/properties');
+    } catch (e: any) {
+      setError(getErrorMessage(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleContractChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setContractForm({ ...contractForm, [e.target.name]: e.target.value });
+  };
+
+  const handleCreateContract = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setContractLoading(true);
+    setContractError(null);
+    setContractSuccess(null);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      if (!apiUrl) throw new Error("API_URL non défini");
+      if (!property?.id) throw new Error("ID du bien manquant");
+      const body: any = {
+        propertyId: property.id,
+        monthlyRent: Number(contractForm.monthlyRent),
+      };
+      if (contractForm.startDate) body.startDate = contractForm.startDate;
+      if (contractForm.endDate) body.endDate = contractForm.endDate;
+      if (contractForm.tenantEmails) {
+        body.tenantEmails = contractForm.tenantEmails.split(',').map((email: string) => email.trim()).filter(Boolean);
+      }
+      let res;
+      try {
+        res = await fetch(`${apiUrl}/api/contracts`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(body),
+        });
+      } catch (err) {
+        throw new Error("Erreur réseau : " + getErrorMessage(err));
+      }
+      if (!res.ok) {
+        let errorMsg = `Erreur API (${res.status})`;
+        try {
+          const data = await res.json();
+          if (data && data.error) errorMsg = data.error;
+        } catch (err) {
+          errorMsg += ' (réponse non JSON)';
+        }
+        throw new Error(errorMsg);
+      }
+      setContractSuccess('Contrat créé avec succès !');
+      setCreateContractOpen(false);
+      setContractForm({ startDate: '', endDate: '', monthlyRent: property?.rent || '', tenantEmails: '' });
+      window.location.reload();
+    } catch (e: any) {
+      setContractError(getErrorMessage(e));
+    } finally {
+      setContractLoading(false);
+    }
+  };
 
   // Helper for property type label
   const propertyTypeLabels: Record<number, string> = {
@@ -101,7 +298,12 @@ export default function PropertyDetailsPage() {
           {loading ? (
             <div className="flex justify-center items-center h-40">Chargement...</div>
           ) : error ? (
-            <div className="text-red-500 text-center">{error}</div>
+            <div className="w-full bg-red-900/90 text-red-200 border border-red-700 rounded-lg p-4 my-2 text-center animate-in fade-in shadow-lg whitespace-pre-wrap">
+              <span className="font-bold">Erreur :</span> {error}
+              <div className="mt-2">
+                <Button variant="outline" size="sm" onClick={() => window.location.reload()}>Réessayer</Button>
+              </div>
+            </div>
           ) : property ? (
             <>
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 w-full">
@@ -118,12 +320,15 @@ export default function PropertyDetailsPage() {
                   </div>
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                  <Button variant="secondary" size="sm"><IconEdit className="h-4 w-4 mr-1" />Modifier</Button>
-                  <Button variant="destructive" size="sm"><IconTrash className="h-4 w-4 mr-1" />Supprimer</Button>
+                  <Button variant="secondary" size="sm" onClick={() => setEditOpen(true)}><IconEdit className="h-4 w-4 mr-1" />Modifier</Button>
+                  <Button variant="destructive" size="sm" onClick={handleDelete}><IconTrash className="h-4 w-4 mr-1" />Supprimer</Button>
                   <Button asChild variant="default" size="sm">
                     <Link href={`/chat?propertyId=${property.id}`} prefetch={false}>
                       <IconMessageCircle className="h-4 w-4 mr-1" />Chat
                     </Link>
+                  </Button>
+                  <Button variant="default" size="sm" onClick={() => setCreateContractOpen(true)}>
+                    + Créer un contrat
                   </Button>
                 </div>
               </div>
@@ -218,6 +423,128 @@ export default function PropertyDetailsPage() {
                 </div>
               )}
               <PropertyContractsSection propertyId={property.id} />
+              {/* Modale d'édition */}
+              <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Modifier le bien</DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleEditProperty} className="space-y-4">
+                    <div>
+                      <label className="block mb-1 font-medium">Type</label>
+                      <select
+                        name="propertyTypeId"
+                        value={editForm.propertyTypeId}
+                        onChange={handleEditChange}
+                        className="w-full rounded-md border bg-background text-foreground px-3 py-2"
+                        required
+                      >
+                        <option value={1}>Appartement</option>
+                        <option value={2}>Maison</option>
+                        <option value={3}>Local commercial</option>
+                        <option value={4}>Terrain</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block mb-1 font-medium">Adresse</label>
+                      <input name="address" value={editForm.address} onChange={handleEditChange} required className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <label className="block mb-1 font-medium">Surface (m²)</label>
+                        <input name="surfaceArea" type="number" min="1" value={editForm.surfaceArea} onChange={handleEditChange} required className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block mb-1 font-medium">Loyer (€)</label>
+                        <input name="rent" type="number" min="1" value={editForm.rent} onChange={handleEditChange} required className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block mb-1 font-medium">Description</label>
+                      <input name="description" value={editForm.description} onChange={handleEditChange} className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <label className="block mb-1 font-medium">Pièces</label>
+                        <input name="numberOfBedrooms" type="number" min="0" value={editForm.numberOfBedrooms} onChange={handleEditChange} className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block mb-1 font-medium">Charges estimées (€)</label>
+                        <input name="estimatedCharges" type="number" min="0" value={editForm.estimatedCharges} onChange={handleEditChange} className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <label className="block mb-1 font-medium">Surface habitable (m²)</label>
+                        <input name="carpetArea" type="number" min="0" value={editForm.carpetArea} onChange={handleEditChange} className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block mb-1 font-medium">Surface du terrain (m²)</label>
+                        <input name="plotArea" type="number" min="0" value={editForm.plotArea} onChange={handleEditChange} className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <label className="block mb-1 font-medium">Salles de bain</label>
+                        <input name="numberOfBathrooms" type="number" min="0" value={editForm.numberOfBathrooms} onChange={handleEditChange} className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block mb-1 font-medium">Nombre d'étages</label>
+                        <input name="numberOfFloors" type="number" min="0" value={editForm.numberOfFloors} onChange={handleEditChange} className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block mb-1 font-medium">Étage du bien</label>
+                      <input name="propertyOnFloor" value={editForm.propertyOnFloor} onChange={handleEditChange} className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
+                    </div>
+                    {editError && <div className="text-red-500 text-sm whitespace-pre-wrap">{editError}</div>}
+                    <DialogFooter className="gap-2">
+                      <Button type="button" variant="outline" onClick={() => setEditOpen(false)} disabled={editLoading}>
+                        Annuler
+                      </Button>
+                      <Button type="submit" variant="default" disabled={editLoading}>
+                        {editLoading ? "Modification..." : "Enregistrer"}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+              {/* Modale de création de contrat */}
+              <Dialog open={createContractOpen} onOpenChange={setCreateContractOpen}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Créer un contrat</DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleCreateContract} className="space-y-4">
+                    <div>
+                      <label className="block mb-1 font-medium">Loyer mensuel (€)</label>
+                      <input name="monthlyRent" type="number" min="1" value={contractForm.monthlyRent} onChange={handleContractChange} required className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
+                    </div>
+                    <div>
+                      <label className="block mb-1 font-medium">Date de début</label>
+                      <input name="startDate" type="date" value={contractForm.startDate} onChange={handleContractChange} className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
+                    </div>
+                    <div>
+                      <label className="block mb-1 font-medium">Date de fin</label>
+                      <input name="endDate" type="date" value={contractForm.endDate} onChange={handleContractChange} className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
+                    </div>
+                    <div>
+                      <label className="block mb-1 font-medium">Emails des locataires (séparés par des virgules)</label>
+                      <textarea name="tenantEmails" value={contractForm.tenantEmails} onChange={handleContractChange} className="w-full rounded-md border bg-background text-foreground px-3 py-2" placeholder="ex: locataire1@email.com, locataire2@email.com" />
+                    </div>
+                    {contractError && <div className="text-red-500 text-sm whitespace-pre-wrap">{contractError}</div>}
+                    {contractSuccess && <div className="text-green-500 text-sm">{contractSuccess}</div>}
+                    <DialogFooter className="gap-2">
+                      <Button type="button" variant="outline" onClick={() => setCreateContractOpen(false)} disabled={contractLoading}>
+                        Annuler
+                      </Button>
+                      <Button type="submit" variant="default" disabled={contractLoading}>
+                        {contractLoading ? 'Création...' : 'Créer'}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
             </>
           ) : null}
         </div>

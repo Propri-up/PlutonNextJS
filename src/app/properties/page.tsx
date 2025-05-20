@@ -161,6 +161,13 @@ export default function PropertiesPage() {
     rent: "",
     numberOfBedrooms: "",
     estimatedCharges: "",
+    description: "",
+    contractId: "",
+    carpetArea: "",
+    plotArea: "",
+    numberOfBathrooms: "",
+    numberOfFloors: "",
+    propertyOnFloor: "",
   });
 
   const handleAddChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -178,15 +185,21 @@ export default function PropertiesPage() {
       if (form.type === "house") propertyTypeId = 2;
       else if (form.type === "commercial") propertyTypeId = 3;
       else if (form.type === "land") propertyTypeId = 4;
-      const body = {
+      const body: any = {
         address: form.address,
         surfaceArea: Number(form.surface),
         rent: Number(form.rent),
         propertyTypeId,
-        numberOfBedrooms: form.numberOfBedrooms ? Number(form.numberOfBedrooms) : undefined,
-        estimatedCharges: form.estimatedCharges ? Number(form.estimatedCharges) : undefined,
-        description: "",
       };
+      if (form.numberOfBedrooms) body.numberOfBedrooms = Number(form.numberOfBedrooms);
+      if (form.estimatedCharges) body.estimatedCharges = Number(form.estimatedCharges);
+      if (form.description) body.description = form.description;
+      if (form.contractId) body.contractId = form.contractId;
+      if (form.carpetArea) body.carpetArea = Number(form.carpetArea);
+      if (form.plotArea) body.plotArea = Number(form.plotArea);
+      if (form.numberOfBathrooms) body.numberOfBathrooms = Number(form.numberOfBathrooms);
+      if (form.numberOfFloors) body.numberOfFloors = Number(form.numberOfFloors);
+      if (form.propertyOnFloor) body.propertyOnFloor = form.propertyOnFloor;
       const res = await fetch(`${apiUrl}/api/properties`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -198,7 +211,21 @@ export default function PropertiesPage() {
         throw new Error(data?.error || "Erreur lors de l'ajout du bien");
       }
       setAddOpen(false);
-      setForm({ type: "apartment", address: "", surface: "", rent: "", numberOfBedrooms: "", estimatedCharges: "" });
+      setForm({
+        type: "apartment",
+        address: "",
+        surface: "",
+        rent: "",
+        numberOfBedrooms: "",
+        estimatedCharges: "",
+        description: "",
+        contractId: "",
+        carpetArea: "",
+        plotArea: "",
+        numberOfBathrooms: "",
+        numberOfFloors: "",
+        propertyOnFloor: "",
+      });
       fetchProperties();
     } catch (e: any) {
       setAddError(e.message || "Erreur lors de l'ajout du bien");
@@ -478,6 +505,10 @@ export default function PropertiesPage() {
                         <Input name="rent" type="number" min="1" value={form.rent} onChange={handleAddChange} required />
                       </div>
                     </div>
+                    <div>
+                      <label className="block mb-1 font-medium">Description</label>
+                      <Input name="description" value={form.description} onChange={handleAddChange} />
+                    </div>
                     <div className="flex gap-2">
                       <div className="flex-1">
                         <label className="block mb-1 font-medium">Pièces</label>
@@ -487,6 +518,30 @@ export default function PropertiesPage() {
                         <label className="block mb-1 font-medium">Charges estimées (€)</label>
                         <Input name="estimatedCharges" type="number" min="0" value={form.estimatedCharges} onChange={handleAddChange} />
                       </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <label className="block mb-1 font-medium">Surface habitable (m²)</label>
+                        <Input name="carpetArea" type="number" min="0" value={form.carpetArea} onChange={handleAddChange} />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block mb-1 font-medium">Surface du terrain (m²)</label>
+                        <Input name="plotArea" type="number" min="0" value={form.plotArea} onChange={handleAddChange} />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <label className="block mb-1 font-medium">Salles de bain</label>
+                        <Input name="numberOfBathrooms" type="number" min="0" value={form.numberOfBathrooms} onChange={handleAddChange} />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block mb-1 font-medium">Nombre d'étages</label>
+                        <Input name="numberOfFloors" type="number" min="0" value={form.numberOfFloors} onChange={handleAddChange} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block mb-1 font-medium">Étage du bien</label>
+                      <Input name="propertyOnFloor" value={form.propertyOnFloor} onChange={handleAddChange} />
                     </div>
                     {addError && <div className="text-red-500 text-sm">{addError}</div>}
                     <DialogFooter className="gap-2">
