@@ -128,7 +128,7 @@ export default function DocumentsPage() {
 
   // Mapping pour afficher des noms lisibles pour les types de documents
   const documentTypeLabels: Record<string, string> = {
-    "lease-contract": "Contrat de bail",
+    "lease-contract": "Contrat de location",
     "rent-receipt": "Quittance de loyer",
     "property-inspection": "État des lieux"
   };

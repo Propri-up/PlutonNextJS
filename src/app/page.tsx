@@ -158,10 +158,9 @@ export default function Home() {
                 Connexion
               </Link>
             </motion.div>
-            <div className="ml-2 flex items-center">
-              {/* Bouton de changement de thème */}
+            {/* <div className="ml-2 flex items-center">
               <ThemeSwitcher />
-            </div>
+            </div> */}
           </nav>
         </div>
 

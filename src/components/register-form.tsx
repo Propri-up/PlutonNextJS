@@ -71,11 +71,11 @@ export function RegisterForm({
   return (
     <form onSubmit={handleRegister} className={cn("space-y-4", className)} {...props}>
       <div>
-        <Label htmlFor="name">Nom</Label>
+        <Label className="mb-2" htmlFor="name">Nom</Label>
         <Input id="name" ref={nameRef} placeholder="Votre nom" autoComplete="name" />
       </div>
       <div>
-        <Label htmlFor="email">Votre adresse email</Label>
+        <Label className="mb-2" htmlFor="email">Votre adresse email</Label>
         <Input
           id="email"
           ref={emailRef}
@@ -91,7 +91,7 @@ export function RegisterForm({
         )}
       </div>
       <div>
-        <Label htmlFor="password">Mot de passe</Label>
+        <Label className="mb-2"  htmlFor="password">Mot de passe</Label>
         <Input id="password" ref={passwordRef} type="password" autoComplete="new-password" required />
       </div>
       {error && <div className="text-destructive text-sm">{error}</div>}

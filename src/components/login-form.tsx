@@ -1,10 +1,10 @@
-import { useRouter } from "next/navigation"
-import { GalleryVerticalEnd } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { signIn } from "@/lib/auth-client"
+import { useRouter } from "next/navigation";
+import { GalleryVerticalEnd } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { signIn } from "@/lib/auth-client";
 import { useRef, useState } from "react";
 
 interface SignInCredentials {
@@ -36,22 +36,25 @@ export function LoginForm({
     const credentials: SignInCredentials = {
       email: emailRef.current?.value || "",
       password: passwordRef.current?.value || "",
-      rememberMe: true
+      rememberMe: true,
     };
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/sign-in/email`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify(credentials),
-      });
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/sign-in/email`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify(credentials),
+        }
+      );
       const data = await res.json();
       if (res.status !== 200) {
         setError("L'authentification a échoué. Veuillez réessayer.");
       } else {
-        if(!data.user.emailVerified) { 
+        if (!data.user.emailVerified) {
           setError("Veuillez vérifier votre adresse email.");
         } else {
           router.push("/dashboard");
@@ -77,43 +80,45 @@ export function LoginForm({
                 type="email"
                 required
                 value={email}
-                onChange={e => setEmail(e.target.value)}
+                onChange={(e) => setEmail(e.target.value)}
                 onBlur={() => setEmailTouched(true)}
                 autoFocus
                 className="bg-[#181830] text-white border-[#3a3a56] placeholder:text-gray-500 focus:border-primary"
               />
-              {emailTouched && !emailIsValid && (
-                <div className="text-red-500 text-xs mt-1">Veuillez entrer une adresse email valide.</div>
-              )}
             </div>
-            {emailIsValid && (
-              <>
-                <div className="grid gap-3">
-                  <Label htmlFor="password">Mot de passe</Label>
-                  <Input
-                    ref={passwordRef}
-                    id="password"
-                    type="password"
-                    placeholder=""
-                    required
-                    className="bg-[#181830] text-white border-[#3a3a56] placeholder:text-gray-500 focus:border-primary"
-                  />
+            <>
+              <div className="grid gap-3">
+                <Label htmlFor="password">Mot de passe</Label>
+                <Input
+                  ref={passwordRef}
+                  id="password"
+                  type="password"
+                  placeholder=""
+                  required
+                  className="bg-[#181830] text-white border-[#3a3a56] placeholder:text-gray-500 focus:border-primary"
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Connexion en cours..." : "Connexion"}
+              </Button>
+              {error && (
+                <div className="text-red-500 text-sm mt-2 text-center">
+                  {error}
                 </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Connexion en cours..." : "Connexion"}
-                </Button>
-                {error && (
-                  <div className="text-red-500 text-sm mt-2 text-center">{error}</div>
-                )}
-              </>
-            )}
+              )}
+            </>
           </div>
-          <div className="after:border-[#3a3a56] relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t">
+          {emailTouched && !emailIsValid && (
+            <div className="text-red-500 text-xs mt-1">
+              Veuillez entrer une adresse email valide.
+            </div>
+          )}
+          {/* <div className="after:border-[#3a3a56] relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t">
             <span className="bg-[#0A0A22] text-gray-400 relative z-10 px-2">
               Or
             </span>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-1">
+          </div> */}
+          {/* <div className="grid gap-4 sm:grid-cols-1">
             <Button
               type="button"
               className="w-full bg-[#181830] text-white border-[#3a3a56] hover:bg-[#232347] hover:border-primary hover:text-white focus-visible:ring-2 focus-visible:ring-primary/60 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
@@ -141,13 +146,14 @@ export function LoginForm({
               </svg>
               Continue with Google
             </Button>
-          </div> 
+          </div>  */}
         </div>
       </form>
       <div className="text-gray-400 *:[a]:hover:text-primary text-center text-xs text-balance *:[a]:underline *:[a]:underline-offset-4">
-        En cliquant sur Continuer, vous acceptez nos <a href="#">Conditions d'utilisation</a>{" "}
-        et notre <a href="#">Politique de confidentialité</a>.
+        En cliquant sur Continuer, vous acceptez nos{" "}
+        <a href="#">Conditions d'utilisation</a> et notre{" "}
+        <a href="#">Politique de confidentialité</a>.
       </div>
     </div>
-  )
+  );
 }

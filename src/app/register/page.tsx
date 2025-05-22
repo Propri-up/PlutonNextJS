@@ -9,9 +9,11 @@ export default function RegisterPage() {
       <div className="hidden md:flex flex-col justify-between w-1/2 bg-muted px-12 py-10">
         <div>
           <span className="font-semibold text-lg tracking-tight flex items-center gap-2">
-            <img src="/logo.png" alt="Pluton" className="h-8 w-8 mr-2" />
             Pluton
           </span>
+        </div>
+        <div className="flex flex-col items-center">
+          <img src="/logo.png" alt="Pluton" className="h-70 w-90" />
         </div>
         <div className="mb-8">
           <blockquote className="text-lg font-medium">“Optimisez la gestion de vos biens immobiliers avec Pluton. Suivi des locations, automatisation, et bien plus en un seul endroit.”</blockquote>
@@ -25,9 +27,9 @@ export default function RegisterPage() {
           <span className="text-sm text-muted-foreground">Déjà un compte ? </span>
           <a href="/login" className="text-sm font-medium text-primary hover:underline">Se connecter</a>
           {/* Switcher thème en haut à droite, bien séparé */}
-          <div>
+          {/* <div>
             <ThemeSwitcher />
-          </div>
+          </div> */}
         </div>
         <div className="w-full max-w-md space-y-8">
           <div className="bg-card rounded-2xl shadow p-8 border border-border">
