@@ -172,10 +172,9 @@ export function PropertyContractsSection({ propertyId }: { propertyId: number })
             <div className="text-muted-foreground text-sm">Aucun contrat pour ce bien.</div>
           ) : (
             (() => {
-              // On ne garde que les docs liés à chaque contrat
               const allDocs = contracts.flatMap((c) => {
                 const docs = contractDocs[c.contract.id] || [];
-                return docs.map((doc: any) => ({ doc, contract: c }));
+                return docs.filter((doc: any) => doc.documentType?.name === "lease-contract").map((doc: any) => ({ doc, contract: c }));
               });
               if (allDocs.length === 0) {
                 return <div className="text-muted-foreground text-sm">Aucun document pour ce bien.</div>;
@@ -188,13 +187,10 @@ export function PropertyContractsSection({ propertyId }: { propertyId: number })
                         <span className="text-4xl text-primary/80 group-hover:scale-110 transition-transform">📄</span>
                       </div>
                       <div className="flex flex-col gap-1 px-7 pt-5 pb-2">
-                        <div className="font-semibold truncate text-lg text-foreground mb-1 group-hover:text-primary transition-colors flex items-center justify-between">
+                        <div className="font-semibold truncate text-lg text-foreground mb-1 group-hover:text-primary transition-colors flex items-center">
                           {getDocumentDisplayName(doc)}
-                          <Button size="icon" variant="destructive" className="ml-2" title="Supprimer ce document" onClick={() => handleDeleteDocument(contract.contract.id, doc.id)}>
-                            <span aria-hidden>🗑️</span>
-                          </Button>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mt-2">
                           {contract.property && (
                             <span className="capitalize font-medium bg-muted/60 px-2 py-0.5 rounded" title={contract.property.address || `Bien #${doc.propertyId}`}>
                               {contract.property.address
@@ -205,9 +201,9 @@ export function PropertyContractsSection({ propertyId }: { propertyId: number })
                           {doc.contractId && (
                             <span className="capitalize font-medium bg-muted/60 px-2 py-0.5 rounded">Contrat #{doc.contractId}</span>
                           )}
-                          <span className="ml-auto">{doc.creationDate ? new Date(doc.creationDate).toLocaleDateString("fr-FR") : "-"}</span>
+                          <span className="ml-auto whitespace-nowrap">{doc.creationDate ? new Date(doc.creationDate).toLocaleDateString("fr-FR") : "-"}</span>
                         </div>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-1">
                           {doc.size && <span>{doc.size}</span>}
                           {doc.documentType && (
                             <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full">
@@ -218,7 +214,6 @@ export function PropertyContractsSection({ propertyId }: { propertyId: number })
                       </div>
                       <div className="flex gap-3 px-7 pb-6 pt-5 mt-auto">
                         <Button size="sm" variant="default" className="w-1/2 rounded-md font-medium" onClick={() => { 
-                          // On transfère toutes les propriétés du document à la modale
                           setPreviewDoc({ 
                             ...doc, 
                             url: doc.signedUrl,
@@ -237,19 +232,16 @@ export function PropertyContractsSection({ propertyId }: { propertyId: number })
                           onClick={() => {
                             if (doc.signedUrl) {
                               try {
-                                // Création d'un lien temporaire pour le téléchargement
                                 const link = document.createElement('a');
                                 link.href = doc.signedUrl;
                                 const fileName = `${getDocumentDisplayName(doc)} - ${doc.creationDate ? new Date(doc.creationDate).toLocaleDateString('fr-FR') : 'Document'}.pdf`;
                                 link.setAttribute('download', fileName);
                                 link.setAttribute('target', '_blank');
                                 document.body.appendChild(link);
-                                
                                 toast.success("Téléchargement démarré", {
                                   description: fileName,
                                   duration: 3000
                                 });
-                                
                                 link.click();
                                 document.body.removeChild(link);
                               } catch (err) {

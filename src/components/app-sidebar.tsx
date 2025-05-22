@@ -37,16 +37,16 @@ const data = {
   navMain: [
   ],
   navSecondary: [
-    {
-      title: "Paramètres",
-      url: "#",
-      icon: IconSettings,
-    },
-    {
-      title: "Besoin d'aide ?",
-      url: "#",
-      icon: IconHelp,
-    },
+    // {
+    //   title: "Paramètres",
+    //   url: "#",
+    //   icon: IconSettings,
+    // },
+    // {
+    //   title: "Besoin d'aide ?",
+    //   url: "#",
+    //   icon: IconHelp,
+    // },
   ],
   documents: [
     {
