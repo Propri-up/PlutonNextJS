@@ -116,15 +116,6 @@ export default function PropertyDetailsPage() {
     }
   }, [property]);
 
-  useEffect(() => {
-    if (contracts && contracts.length > 0) {
-      // Affiche les contrats dans la console pour debug
-      // (affiche aussi les documents liés à chaque contrat)
-      // eslint-disable-next-line no-console
-      console.log("CONTRACTS:", contracts);
-    }
-  }, [contracts]);
-
   // Récupère les types de documents à l'ouverture de la modale
   useEffect(() => {
     if (createDocOpen) {
@@ -427,12 +418,9 @@ export default function PropertyDetailsPage() {
                 <Button variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
                   <IconEdit className="h-4 w-4 mr-2" />Modifier
                 </Button>
-                <Button variant="destructive" size="sm" onClick={() => setDeleteConfirmOpen(true)}>
+                {/* <Button variant="destructive" size="sm" onClick={() => setDeleteConfirmOpen(true)}>
                   <IconTrash className="h-4 w-4 mr-2" />Supprimer
-                </Button>
-                <Button variant="destructive" size="sm" onClick={() => setContractDeleteModalOpen(true)}>
-                  <IconTrash className="h-4 w-4 mr-2" />Supprimer un contrat
-                </Button>
+                </Button> */}
                 <Button asChild variant="default" size="sm">
                   <Link href={`/chat?propertyId=${property.id}`} prefetch={false}>
                     <IconMessageCircle className="h-4 w-4 mr-2" />Chat
