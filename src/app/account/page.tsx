@@ -193,10 +193,10 @@ export default function AccountPage() {
       <AppSidebar variant="inset" />
       <SidebarInset>
         <SiteHeader />
-        <div className="flex flex-col h-full w-full px-0 md:px-8 py-8 gap-8">
-          <div className="flex flex-1 flex-col md:flex-row gap-8 w-full h-full">
+        <div className="h-full w-full px-0 md:px-8 py-8 gap-8">
+          <div className="flex gap-8 w-full h-full">
             {/* Profil utilisateur */}
-            <Card className="w-full md:max-w-sm bg-card/90 text-foreground flex flex-col items-center p-8 shadow-xl border border-border rounded-2xl h-fit md:sticky md:top-8">
+            <Card className="w-full bg-card/90 text-foreground flex items-center p-8 shadow-xl border border-border rounded-2xl h-fit md:sticky md:top-8">
               <Avatar className="h-28 w-28 shadow-lg mb-4">
                 {user.image ? (
                   <AvatarImage src={user.image} alt={user.name} />
@@ -225,64 +225,6 @@ export default function AccountPage() {
                 Modifier mon profil
               </Button>
             </Card>
-
-            {/* Propriétés utilisateur */}
-            <Card className="flex-1 bg-card/90 text-foreground flex flex-col shadow-xl border border-border rounded-2xl min-h-[400px]">
-              <CardHeader>
-                <CardTitle className="text-xl font-bold">Mes propriétés</CardTitle>
-              </CardHeader>
-              <CardContent className="flex-1 flex flex-col">
-                {properties.length === 0 ? (
-                  <div className="text-muted-foreground">Aucune propriété enregistrée.</div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
-                    {properties.map((prop: any) => {
-                      const property = mapApiPropertyToProperty(prop);
-                      return (
-                        <div key={property.id} className="flex flex-col gap-2">
-                          <a href={`/properties/${property.id}`} className="group">
-                            <Card
-                              className="overflow-hidden shadow-md hover:shadow-xl transition cursor-pointer flex flex-col bg-gradient-to-t from-primary/5 to-card dark:bg-card border border-border rounded-2xl min-h-[340px] group-hover:ring-2 group-hover:ring-primary relative"
-                              tabIndex={0}
-                              role="button"
-                              aria-label={`Voir détails de ${property.title}`}
-                            >
-                              {/* Badge type en haut à gauche */}
-                              <Badge className="absolute top-4 left-4 z-10 bg-primary text-primary-foreground text-xs px-3 py-1 rounded shadow-md">
-                                {propertyTypeLabels[property.type]}
-                              </Badge>
-                              {/* Logo centré, fond harmonieux */}
-                              <div className="h-40 w-full flex items-center justify-center bg-gradient-to-b from-background/80 to-muted/80 dark:from-card/80 dark:to-muted/60 relative rounded-b-none rounded-t-2xl">
-                                <span className="flex items-center justify-center rounded-full bg-muted shadow-inner h-20 w-20 border-2 border-primary/20">
-                                  {PropertyTypeIcon({ type: property.type })}
-                                </span>
-                              </div>
-                              <CardHeader className="pb-2 flex-1 flex flex-col justify-between">
-                                <CardTitle className="text-lg font-semibold truncate text-foreground">
-                                  {property.title}
-                                </CardTitle>
-                                <div className="truncate mt-1 text-xs text-muted-foreground">
-                                  {property.address}
-                                </div>
-                              </CardHeader>
-                              <CardFooter className="flex flex-col gap-1 items-start pt-2 px-4 pb-4">
-                                <div className="text-base font-bold text-primary">
-                                  {formatPrice(property.price)}
-                                </div>
-                                <div className="flex gap-4 text-xs text-muted-foreground">
-                                  <span>Surface: <span className="font-medium text-foreground">{property.surface} m²</span></span>
-                                  <span>Pièces: <span className="font-medium text-foreground">{property.rooms}</span></span>
-                                </div>
-                              </CardFooter>
-                            </Card>
-                          </a>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
           </div>
 
           {/* Dialog édition utilisateur */}
@@ -310,10 +252,6 @@ export default function AccountPage() {
                   <div>
                     <label className="block text-sm font-medium mb-1">Email</label>
                     <Input value={editEmail || ""} onChange={e => setEditEmail(e.target.value)} type="email" required />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Image (URL)</label>
-                    <Input value={editImage || ""} onChange={e => setEditImage(e.target.value)} type="url" placeholder="https://..." />
                   </div>
                 </div>
                 {error && <div className="text-destructive text-sm">{error}</div>}

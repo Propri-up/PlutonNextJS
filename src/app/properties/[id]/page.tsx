@@ -13,6 +13,8 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { PropertyContractsSection } from '@/components/property-contracts-section';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 // Helper pour afficher les erreurs réseau/fetch
 function getErrorMessage(error: any): string {
@@ -36,6 +38,7 @@ export default function PropertyDetailsPage() {
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<any>({});
+  const [editStep, setEditStep] = useState(1); // Ajout pour étapes modale édition
 
   const [createContractOpen, setCreateContractOpen] = useState(false);
   const [contractLoading, setContractLoading] = useState(false);
@@ -47,6 +50,20 @@ export default function PropertyDetailsPage() {
     monthlyRent: property?.rent || '',
     tenantEmails: '', // comma separated
   });
+
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [contractDeleteModalOpen, setContractDeleteModalOpen] = useState(false); // for contract delete modal
+
+  // Ajout pour la création de document
+  const [createDocOpen, setCreateDocOpen] = useState(false);
+  const [docTypes, setDocTypes] = useState<any[]>([]);
+  const [docTypeLoading, setDocTypeLoading] = useState(false);
+  const [docTypeError, setDocTypeError] = useState<string | null>(null);
+  const [selectedDocType, setSelectedDocType] = useState<string>("");
+  const [selectedDocTypeId, setSelectedDocTypeId] = useState<number | null>(null);
+  const [generateDocLoading, setGenerateDocLoading] = useState(false);
+  const [generateDocError, setGenerateDocError] = useState<string | null>(null);
+  const [generateDocSuccess, setGenerateDocSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -66,15 +83,10 @@ export default function PropertyDetailsPage() {
         } else {
           setTenants([]);
         }
-        // Get contracts for this property
+        // Get contracts for this property (restore correct fetch)
         const resContracts = await fetch(`${apiUrl}/api/properties/${id}/contracts`, { credentials: 'include' });
         const dataContracts = await resContracts.json();
-        const contractsWithDocs = await Promise.all((dataContracts.contracts || []).map(async (c: any) => {
-          const resDocs = await fetch(`${apiUrl}/api/contracts/${c.contract.id}/documents`, { credentials: 'include' });
-          const dataDocs = await resDocs.json();
-          return { ...c, documents: dataDocs.documents || [] };
-        }));
-        setContracts(contractsWithDocs);
+        setContracts(dataContracts.contracts || []);
       } catch (e: any) {
         setError(e.message || "Erreur lors du chargement des données");
       } finally {
@@ -112,6 +124,26 @@ export default function PropertyDetailsPage() {
       console.log("CONTRACTS:", contracts);
     }
   }, [contracts]);
+
+  // Récupère les types de documents à l'ouverture de la modale
+  useEffect(() => {
+    if (createDocOpen) {
+      setDocTypeLoading(true);
+      setDocTypeError(null);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      fetch(`${apiUrl}/api/documents/types`, { credentials: "include" })
+        .then(res => res.json())
+        .then(data => {
+          console.log('Réponse API /api/documents/types:', data); // DEBUG
+          setDocTypes(data.data || []);
+        })
+        .catch((err) => {
+          setDocTypeError("Erreur lors du chargement des types de document.");
+          console.error('Erreur API /api/documents/types:', err); // DEBUG
+        })
+        .finally(() => setDocTypeLoading(false));
+    }
+  }, [createDocOpen]);
 
   const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setEditForm({ ...editForm, [e.target.name]: e.target.value });
@@ -171,7 +203,6 @@ export default function PropertyDetailsPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer ce bien ?")) return;
     setLoading(true);
     setError(null);
     try {
@@ -189,17 +220,38 @@ export default function PropertyDetailsPage() {
       }
       if (!res.ok) {
         let errorMsg = `Erreur API (${res.status})`;
+        let errorData = null;
         try {
           const data = await res.json();
+          errorData = data;
           if (data && data.error) errorMsg = data.error;
         } catch (err) {
           errorMsg += ' (réponse non JSON)';
         }
         throw new Error(errorMsg);
       }
-      router.push('/properties');
+      
+      // Fermer la modale de confirmation
+      setDeleteConfirmOpen(false);
+      
+      // Afficher une notification de succès
+      toast.success("Le bien immobilier a été supprimé avec succès", {
+        description: "Redirection vers la liste des biens...",
+        duration: 3000,
+      });
+      
+      // Rediriger vers la liste des propriétés
+      setTimeout(() => router.push('/properties'), 500);
     } catch (e: any) {
-      setError(getErrorMessage(e));
+      // Afficher l'erreur dans l'interface
+      const errorMessage = getErrorMessage(e);
+      setError(errorMessage);
+      
+      // Afficher une notification d'erreur
+      toast.error("Erreur lors de la suppression", {
+        description: errorMessage,
+        duration: 5000,
+      });
     } finally {
       setLoading(false);
     }
@@ -259,6 +311,54 @@ export default function PropertyDetailsPage() {
     }
   };
 
+  // Handler pour générer le document
+  const handleGenerateDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setGenerateDocLoading(true);
+    setGenerateDocError(null);
+    setGenerateDocSuccess(null);
+    try {
+      if (!contracts?.length) throw new Error("Aucun contrat disponible pour ce bien.");
+      if (!selectedDocType) throw new Error("Veuillez sélectionner un type de document.");
+      // On prend le premier contrat par défaut (ou on peut laisser choisir)
+      const contractId = contracts[0]?.contract?.id || contracts[0]?.id;
+      if (!contractId) throw new Error("Aucun contrat valide trouvé.");
+      
+      if (!selectedDocTypeId) throw new Error("ID du type de document invalide.");
+      const payload = {
+        contractId,
+        documentTypeId: selectedDocTypeId,
+        uploadToS3: true,
+      };
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      const res = await fetch(`${apiUrl}/api/contracts/documents/generate/${selectedDocType}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        // Check if it's a Puppeteer timeout error
+        if (data?.error && data.error.includes("TimeoutError") && data.error.includes("trying to connect to the browser")) {
+          throw new Error("Erreur de génération PDF: Impossible de démarrer Chrome. Veuillez contacter l'administrateur système.");
+        } else {
+          throw new Error(data?.error || "Erreur lors de la génération du document");
+        }
+      }
+      setGenerateDocSuccess("Document généré avec succès !");
+      setCreateDocOpen(false);
+      setSelectedDocType("");
+      setSelectedDocTypeId(null);
+      // Recharger les documents/contrats
+      window.location.reload();
+    } catch (e: any) {
+      setGenerateDocError(e.message || "Erreur lors de la génération du document");
+    } finally {
+      setGenerateDocLoading(false);
+    }
+  };
+
   // Helper for property type label
   const propertyTypeLabels: Record<number, string> = {
     1: 'Appartement',
@@ -292,9 +392,11 @@ export default function PropertyDetailsPage() {
       <SidebarInset>
         <SiteHeader title={property?.address || 'Détail du bien'} />
         <div className="flex flex-col gap-6 p-4 md:p-8 w-full">
-          <Button variant="outline" size="sm" className="w-fit mb-2" onClick={() => router.back()}>
-            ← Retour
-          </Button>
+          <div className="flex gap-2 mb-2">
+            <Button variant="outline" size="sm" className="text-muted-foreground" onClick={() => router.back()}>
+              ← Retour
+            </Button>
+          </div>
           {loading ? (
             <div className="flex justify-center items-center h-40">Chargement...</div>
           ) : error ? (
@@ -308,30 +410,54 @@ export default function PropertyDetailsPage() {
             <>
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 w-full">
                 <div className="flex items-center gap-4">
-                  <div className="h-20 w-20 flex items-center justify-center bg-muted rounded-lg">
-                    <IconBuilding className="h-12 w-12 text-muted-foreground" />
+                  <div className="h-20 w-20 flex items-center justify-center bg-muted/30 rounded-lg shadow-inner border border-border/50">
+                    <IconBuilding className="h-12 w-12 text-primary/80" />
                   </div>
                   <div>
                     <h1 className="text-2xl font-bold mb-1">{property.address}</h1>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Badge>{propertyTypeLabels[property.propertyTypeId] || 'Type inconnu'}</Badge>
-                      <span className="text-muted-foreground text-sm">{property.address}</span>
+                      <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 px-2 py-0.5">{propertyTypeLabels[property.propertyTypeId] || 'Type inconnu'}</Badge>
                     </div>
                   </div>
                 </div>
-                <div className="flex gap-2 flex-wrap">
-                  <Button variant="secondary" size="sm" onClick={() => setEditOpen(true)}><IconEdit className="h-4 w-4 mr-1" />Modifier</Button>
-                  <Button variant="destructive" size="sm" onClick={handleDelete}><IconTrash className="h-4 w-4 mr-1" />Supprimer</Button>
-                  <Button asChild variant="default" size="sm">
-                    <Link href={`/chat?propertyId=${property.id}`} prefetch={false}>
-                      <IconMessageCircle className="h-4 w-4 mr-1" />Chat
-                    </Link>
-                  </Button>
-                  <Button variant="default" size="sm" onClick={() => setCreateContractOpen(true)}>
-                    + Créer un contrat
-                  </Button>
-                </div>
               </div>
+              
+              {/* Barre d'actions principales */}
+              <div className="flex flex-wrap items-center gap-3 mb-3 mt-2">
+                <Button variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
+                  <IconEdit className="h-4 w-4 mr-2" />Modifier
+                </Button>
+                <Button variant="destructive" size="sm" onClick={() => setDeleteConfirmOpen(true)}>
+                  <IconTrash className="h-4 w-4 mr-2" />Supprimer
+                </Button>
+                <Button variant="destructive" size="sm" onClick={() => setContractDeleteModalOpen(true)}>
+                  <IconTrash className="h-4 w-4 mr-2" />Supprimer un contrat
+                </Button>
+                <Button asChild variant="default" size="sm">
+                  <Link href={`/chat?propertyId=${property.id}`} prefetch={false}>
+                    <IconMessageCircle className="h-4 w-4 mr-2" />Chat
+                  </Link>
+                </Button>
+                <Button variant="default" size="sm" className="ml-auto" onClick={() => setCreateContractOpen(true)}>
+                  <span className="mr-1">+</span> Créer un contrat
+                </Button>
+                <Button variant="default" size="sm" onClick={() => setCreateDocOpen(true)}>
+                  <span className="mr-1">+</span> Générer un document
+                </Button>
+              </div>
+              <Card className="w-full bg-card/80 shadow-md mt-2 border border-border rounded-2xl">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                    <span className="text-primary">Description</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="font-medium text-sm leading-relaxed">
+                    {property.description ? property.description : 
+                    <span className="text-muted-foreground italic">Aucune description disponible</span>}
+                  </div>
+                </CardContent>
+              </Card>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full mt-2">
                 {/* Détails */}
                 <Card className="col-span-2 bg-card">
@@ -345,8 +471,11 @@ export default function PropertyDetailsPage() {
                       <div><span className="text-muted-foreground text-sm">Loyer</span><div className="font-medium">{formatPrice(property.rent)}</div></div>
                       <div><span className="text-muted-foreground text-sm">Charges estimées</span><div className="font-medium">{property.estimatedCharges ? formatPrice(property.estimatedCharges) : '-'}</div></div>
                       <div><span className="text-muted-foreground text-sm">Pièces</span><div className="font-medium">{property.numberOfBedrooms ?? '-'}</div></div>
-                      <div><span className="text-muted-foreground text-sm">Créé le</span><div className="font-medium">{formatDate(property.createdAt)}</div></div>
-                      <div><span className="text-muted-foreground text-sm">Modifié le</span><div className="font-medium">{formatDate(property.updatedAt)}</div></div>
+                      <div><span className="text-muted-foreground text-sm">Surface habitable</span><div className="font-medium">{property.carpetArea ?? '-'}</div></div>
+                      <div><span className="text-muted-foreground text-sm">Surface du terrain</span><div className="font-medium">{property.plotArea ?? '-'}</div></div>
+                      <div><span className="text-muted-foreground text-sm">Salles de bain</span><div className="font-medium">{property.numberOfBathrooms ?? '-'}</div></div>
+                      <div><span className="text-muted-foreground text-sm">Nombre d'étages</span><div className="font-medium">{property.numberOfFloors ?? '-'}</div></div>
+                      <div><span className="text-muted-foreground text-sm">Étage du bien</span><div className="font-medium">{property.propertyOnFloor ?? '-'}</div></div>
                     </div>
                   </CardContent>
                 </Card>
@@ -422,91 +551,144 @@ export default function PropertyDetailsPage() {
                   Chargement des données du bien en cours...
                 </div>
               )}
-              <PropertyContractsSection propertyId={property.id} />
+              <PropertyContractsSection propertyId={property.id} deleteModalOpen={contractDeleteModalOpen} setDeleteModalOpen={setContractDeleteModalOpen} contracts={contracts} />
               {/* Modale d'édition */}
-              <Dialog open={editOpen} onOpenChange={setEditOpen}>
+              <Dialog open={editOpen} onOpenChange={(open) => { setEditOpen(open); if (!open) { setEditStep(1); setEditError(null); } }}>
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Modifier le bien</DialogTitle>
+                    <button
+                      type="button"
+                      onClick={() => { setEditOpen(false); setEditStep(1); setEditError(null); }}
+                      className="absolute top-3 right-3 text-muted-foreground hover:text-primary transition p-1"
+                      aria-label="Fermer"
+                      tabIndex={0}
+                    >
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
                   </DialogHeader>
                   <form onSubmit={handleEditProperty} className="space-y-4">
-                    <div>
-                      <label className="block mb-1 font-medium">Type</label>
-                      <select
-                        name="propertyTypeId"
-                        value={editForm.propertyTypeId}
-                        onChange={handleEditChange}
-                        className="w-full rounded-md border bg-background text-foreground px-3 py-2"
-                        required
-                      >
-                        <option value={1}>Appartement</option>
-                        <option value={2}>Maison</option>
-                        <option value={3}>Local commercial</option>
-                        <option value={4}>Terrain</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block mb-1 font-medium">Adresse</label>
-                      <input name="address" value={editForm.address} onChange={handleEditChange} required className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
-                    </div>
-                    <div className="flex gap-2">
-                      <div className="flex-1">
-                        <label className="block mb-1 font-medium">Surface (m²)</label>
-                        <input name="surfaceArea" type="number" min="1" value={editForm.surfaceArea} onChange={handleEditChange} required className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
-                      </div>
-                      <div className="flex-1">
-                        <label className="block mb-1 font-medium">Loyer (€)</label>
-                        <input name="rent" type="number" min="1" value={editForm.rent} onChange={handleEditChange} required className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block mb-1 font-medium">Description</label>
-                      <input name="description" value={editForm.description} onChange={handleEditChange} className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
-                    </div>
-                    <div className="flex gap-2">
-                      <div className="flex-1">
-                        <label className="block mb-1 font-medium">Pièces</label>
-                        <input name="numberOfBedrooms" type="number" min="0" value={editForm.numberOfBedrooms} onChange={handleEditChange} className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
-                      </div>
-                      <div className="flex-1">
-                        <label className="block mb-1 font-medium">Charges estimées (€)</label>
-                        <input name="estimatedCharges" type="number" min="0" value={editForm.estimatedCharges} onChange={handleEditChange} className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <div className="flex-1">
-                        <label className="block mb-1 font-medium">Surface habitable (m²)</label>
-                        <input name="carpetArea" type="number" min="0" value={editForm.carpetArea} onChange={handleEditChange} className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
-                      </div>
-                      <div className="flex-1">
-                        <label className="block mb-1 font-medium">Surface du terrain (m²)</label>
-                        <input name="plotArea" type="number" min="0" value={editForm.plotArea} onChange={handleEditChange} className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <div className="flex-1">
-                        <label className="block mb-1 font-medium">Salles de bain</label>
-                        <input name="numberOfBathrooms" type="number" min="0" value={editForm.numberOfBathrooms} onChange={handleEditChange} className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
-                      </div>
-                      <div className="flex-1">
-                        <label className="block mb-1 font-medium">Nombre d'étages</label>
-                        <input name="numberOfFloors" type="number" min="0" value={editForm.numberOfFloors} onChange={handleEditChange} className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block mb-1 font-medium">Étage du bien</label>
-                      <input name="propertyOnFloor" value={editForm.propertyOnFloor} onChange={handleEditChange} className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
-                    </div>
+                    {editStep === 1 && (
+                      <>
+                        <div>
+                          <label className="block mb-1 font-medium">Type</label>
+                          <select
+                            name="propertyTypeId"
+                            value={editForm.propertyTypeId}
+                            onChange={handleEditChange}
+                            className="w-full rounded-md border bg-background text-foreground px-3 py-2"
+                            required
+                          >
+                            <option value={1}>Appartement</option>
+                            <option value={2}>Maison</option>
+                            <option value={3}>Local commercial</option>
+                            <option value={4}>Terrain</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block mb-1 font-medium">Adresse</label>
+                          <input name="address" value={editForm.address} onChange={handleEditChange} required className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
+                        </div>
+                        <div className="flex gap-2">
+                          <div className="flex-1">
+                            <input name="surfaceArea" type="number" min="1" value={editForm.surfaceArea} onChange={handleEditChange} required className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
+                          </div>
+                          <div className="flex-1">
+                            <input name="rent" type="number" min="1" value={editForm.rent} onChange={handleEditChange} required className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block mb-1 font-medium">Description</label>
+                          <input name="description" value={editForm.description} onChange={handleEditChange} className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
+                        </div>
+                      </>
+                    )}
+                    {editStep === 2 && (
+                      <>
+                        <div className="flex gap-2">
+                          <div className="flex-1">
+                            <input name="numberOfBedrooms" type="number" min="0" value={editForm.numberOfBedrooms} onChange={handleEditChange} className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
+                          </div>
+                          <div className="flex-1">
+                            <input name="estimatedCharges" type="number" min="0" value={editForm.estimatedCharges} onChange={handleEditChange} className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <div className="flex-1">
+                            <input name="carpetArea" type="number" min="0" value={editForm.carpetArea} onChange={handleEditChange} className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
+                          </div>
+                          <div className="flex-1">
+                            <input name="plotArea" type="number" min="0" value={editForm.plotArea} onChange={handleEditChange} className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <div className="flex-1">
+                            <input name="numberOfBathrooms" type="number" min="0" value={editForm.numberOfBathrooms} onChange={handleEditChange} className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
+                          </div>
+                          <div className="flex-1">
+                            <input name="numberOfFloors" type="number" min="0" value={editForm.numberOfFloors} onChange={handleEditChange} className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block mb-1 font-medium">Étage du bien</label>
+                          <input name="propertyOnFloor" value={editForm.propertyOnFloor} onChange={handleEditChange} className="w-full rounded-md border bg-background text-foreground px-3 py-2" />
+                        </div>
+                      </>
+                    )}
                     {editError && <div className="text-red-500 text-sm whitespace-pre-wrap">{editError}</div>}
                     <DialogFooter className="gap-2">
-                      <Button type="button" variant="outline" onClick={() => setEditOpen(false)} disabled={editLoading}>
-                        Annuler
-                      </Button>
-                      <Button type="submit" variant="default" disabled={editLoading}>
-                        {editLoading ? "Modification..." : "Enregistrer"}
-                      </Button>
+                      {editStep === 2 && (
+                        <Button type="button" variant="outline" onClick={() => setEditStep(1)} disabled={editLoading}>
+                          Précédent
+                        </Button>
+                      )}
+                      {editStep === 1 && (
+                        <Button type="button" variant="default" onClick={() => setEditStep(2)} disabled={editLoading}>
+                          Suivant
+                        </Button>
+                      )}
+                      {editStep === 2 && (
+                        <Button type="submit" variant="default" disabled={editLoading}>
+                          {editLoading ? "Modification..." : "Enregistrer"}
+                        </Button>
+                      )}
                     </DialogFooter>
                   </form>
+                </DialogContent>
+              </Dialog>
+              {/* Modal de confirmation suppression */}
+              <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Confirmer la suppression</DialogTitle>
+                  </DialogHeader>
+                  <div className="py-3">
+                    <p className="mb-3">Êtes-vous sûr de vouloir supprimer ce bien ? Cette action est irréversible.</p>
+                    {error && (
+                      <div className="bg-destructive/10 text-destructive p-3 rounded-md mt-3 text-sm">
+                        <strong>Erreur:</strong> {error}
+                      </div>
+                    )}
+                  </div>
+                  <DialogFooter className="gap-2">
+                    <Button variant="outline" onClick={() => {
+                      setDeleteConfirmOpen(false);
+                      setError(null);
+                    }} disabled={loading}>
+                      Annuler
+                    </Button>
+                    <Button variant="destructive" onClick={handleDelete} disabled={loading}>
+                      {loading ? (
+                        <>
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Suppression...
+                        </>
+                      ) : "Supprimer"}
+                    </Button>
+                  </DialogFooter>
                 </DialogContent>
               </Dialog>
               {/* Modale de création de contrat */}
@@ -545,10 +727,61 @@ export default function PropertyDetailsPage() {
                   </form>
                 </DialogContent>
               </Dialog>
+              {/* Modale de génération de document */}
+              <Dialog open={createDocOpen} onOpenChange={(open) => {
+                setCreateDocOpen(open);
+                if (!open) {
+                  setSelectedDocType("");
+                  setSelectedDocTypeId(null);
+                }
+              }}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Générer un document</DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleGenerateDocument} className="space-y-4">
+                    <div>
+                      <label className="block mb-1 font-medium">Type de document</label>
+                      {docTypeLoading ? (
+                        <div className="text-muted-foreground text-sm">Chargement...</div>
+                      ) : docTypeError ? (
+                        <div className="text-red-500 text-sm">{docTypeError}</div>
+                      ) : (
+                        <select
+                          value={selectedDocType}
+                          onChange={e => {
+                            setSelectedDocType(e.target.value);
+                            const option = e.target.options[e.target.selectedIndex];
+                            setSelectedDocTypeId(option.getAttribute('data-id') ? Number(option.getAttribute('data-id')) : null);
+                          }}
+                          className="w-full rounded-md border bg-background text-foreground px-3 py-2"
+                          required
+                        >
+                          <option value="">Sélectionner un type</option>
+                          {docTypes.map((type: any) => (
+                            <option key={type.id} value={type.name} data-id={type.id}>{type.description || type.name}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                    {generateDocError && <div className="text-red-500 text-sm whitespace-pre-wrap">{generateDocError}</div>}
+                    {generateDocSuccess && <div className="text-green-500 text-sm">{generateDocSuccess}</div>}
+                    <DialogFooter className="gap-2">
+                      <Button type="button" variant="outline" onClick={() => setCreateDocOpen(false)} disabled={generateDocLoading}>
+                        Annuler
+                      </Button>
+                      <Button type="submit" variant="default" disabled={generateDocLoading}>
+                        {generateDocLoading ? "Génération..." : "Générer"}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
             </>
           ) : null}
         </div>
       </SidebarInset>
+      <Toaster />
     </SidebarProvider>
   );
 }

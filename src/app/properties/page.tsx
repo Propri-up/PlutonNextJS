@@ -154,6 +154,7 @@ export default function PropertiesPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  const [addStep, setAddStep] = useState(1); // Étape 1 ou 2
   const [form, setForm] = useState({
     type: "apartment",
     address: "",
@@ -211,6 +212,7 @@ export default function PropertiesPage() {
         throw new Error(data?.error || "Erreur lors de l'ajout du bien");
       }
       setAddOpen(false);
+      setAddStep(1);
       setForm({
         type: "apartment",
         address: "",
@@ -470,87 +472,113 @@ export default function PropertiesPage() {
                 </DialogContent>
               </Dialog>
               {/* Add property modal */}
-              <Dialog open={addOpen} onOpenChange={setAddOpen}>
+              <Dialog open={addOpen} onOpenChange={(open) => { setAddOpen(open); if (!open) { setAddStep(1); setAddError(null); } }}>
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Ajouter un bien</DialogTitle>
+                    <button
+                      type="button"
+                      onClick={() => { setAddOpen(false); setAddStep(1); setAddError(null); }}
+                      className="absolute top-3 right-3 text-muted-foreground hover:text-primary transition p-1"
+                      aria-label="Fermer"
+                      tabIndex={0}
+                    >
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
                   </DialogHeader>
                   <form onSubmit={handleAddProperty} className="space-y-4">
-                    <div>
-                      <label className="block mb-1 font-medium">Type</label>
-                      <select
-                        name="type"
-                        value={form.type}
-                        onChange={handleAddChange}
-                        className="w-full rounded-md border bg-background text-foreground px-3 py-2"
-                        required
-                      >
-                        <option value="apartment">Appartement</option>
-                        <option value="house">Maison</option>
-                        <option value="commercial">Local commercial</option>
-                        <option value="land">Terrain</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block mb-1 font-medium">Adresse</label>
-                      <Input name="address" value={form.address} onChange={handleAddChange} required />
-                    </div>
-                    <div className="flex gap-2">
-                      <div className="flex-1">
-                        <label className="block mb-1 font-medium">Surface (m²)</label>
-                        <Input name="surface" type="number" min="1" value={form.surface} onChange={handleAddChange} required />
-                      </div>
-                      <div className="flex-1">
-                        <label className="block mb-1 font-medium">Loyer (€)</label>
-                        <Input name="rent" type="number" min="1" value={form.rent} onChange={handleAddChange} required />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block mb-1 font-medium">Description</label>
-                      <Input name="description" value={form.description} onChange={handleAddChange} />
-                    </div>
-                    <div className="flex gap-2">
-                      <div className="flex-1">
-                        <label className="block mb-1 font-medium">Pièces</label>
-                        <Input name="numberOfBedrooms" type="number" min="0" value={form.numberOfBedrooms} onChange={handleAddChange} />
-                      </div>
-                      <div className="flex-1">
-                        <label className="block mb-1 font-medium">Charges estimées (€)</label>
-                        <Input name="estimatedCharges" type="number" min="0" value={form.estimatedCharges} onChange={handleAddChange} />
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <div className="flex-1">
-                        <label className="block mb-1 font-medium">Surface habitable (m²)</label>
-                        <Input name="carpetArea" type="number" min="0" value={form.carpetArea} onChange={handleAddChange} />
-                      </div>
-                      <div className="flex-1">
-                        <label className="block mb-1 font-medium">Surface du terrain (m²)</label>
-                        <Input name="plotArea" type="number" min="0" value={form.plotArea} onChange={handleAddChange} />
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <div className="flex-1">
-                        <label className="block mb-1 font-medium">Salles de bain</label>
-                        <Input name="numberOfBathrooms" type="number" min="0" value={form.numberOfBathrooms} onChange={handleAddChange} />
-                      </div>
-                      <div className="flex-1">
-                        <label className="block mb-1 font-medium">Nombre d'étages</label>
-                        <Input name="numberOfFloors" type="number" min="0" value={form.numberOfFloors} onChange={handleAddChange} />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block mb-1 font-medium">Étage du bien</label>
-                      <Input name="propertyOnFloor" value={form.propertyOnFloor} onChange={handleAddChange} />
-                    </div>
+                    {addStep === 1 && (
+                      <>
+                        <div>
+                          <label className="block mb-1 font-medium">Type</label>
+                          <select
+                            name="type"
+                            value={form.type}
+                            onChange={handleAddChange}
+                            className="w-full rounded-md border bg-background text-foreground px-3 py-2"
+                            required
+                          >
+                            <option value="apartment">Appartement</option>
+                            <option value="house">Maison</option>
+                            <option value="commercial">Local commercial</option>
+                            <option value="land">Terrain</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block mb-1 font-medium">Adresse</label>
+                          <Input name="address" value={form.address} onChange={handleAddChange} required />
+                        </div>
+                        <div className="flex gap-2">
+                          <div className="flex-1">
+                            <label className="block mb-1 font-medium">Surface (m²)</label>
+                            <Input name="surface" type="number" min="1" value={form.surface} onChange={handleAddChange} required />
+                          </div>
+                          <div className="flex-1">
+                            <label className="block mb-1 font-medium">Loyer (€)</label>
+                            <Input name="rent" type="number" min="1" value={form.rent} onChange={handleAddChange} required />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block mb-1 font-medium">Description</label>
+                          <Input name="description" value={form.description} onChange={handleAddChange} />
+                        </div>
+                      </>
+                    )}
+                    {addStep === 2 && (
+                      <>
+                        <div className="flex gap-2">
+                          <div className="flex-1">
+                            <label className="block mb-1 font-medium">Pièces</label>
+                            <Input name="numberOfBedrooms" type="number" min="0" value={form.numberOfBedrooms} onChange={handleAddChange} />
+                          </div>
+                          <div className="flex-1">
+                            <label className="block mb-1 font-medium">Charges estimées (€)</label>
+                            <Input name="estimatedCharges" type="number" min="0" value={form.estimatedCharges} onChange={handleAddChange} />
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <div className="flex-1">
+                            <label className="block mb-1 font-medium">Surface habitable (m²)</label>
+                            <Input name="carpetArea" type="number" min="0" value={form.carpetArea} onChange={handleAddChange} />
+                          </div>
+                          <div className="flex-1">
+                            <label className="block mb-1 font-medium">Surface du terrain (m²)</label>
+                            <Input name="plotArea" type="number" min="0" value={form.plotArea} onChange={handleAddChange} />
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <div className="flex-1">
+                            <label className="block mb-1 font-medium">Salles de bain</label>
+                            <Input name="numberOfBathrooms" type="number" min="0" value={form.numberOfBathrooms} onChange={handleAddChange} />
+                          </div>
+                          <div className="flex-1">
+                            <label className="block mb-1 font-medium">Nombre d'étages</label>
+                            <Input name="numberOfFloors" type="number" min="0" value={form.numberOfFloors} onChange={handleAddChange} />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block mb-1 font-medium">Étage du bien</label>
+                          <Input name="propertyOnFloor" value={form.propertyOnFloor} onChange={handleAddChange} />
+                        </div>
+                      </>
+                    )}
                     {addError && <div className="text-red-500 text-sm">{addError}</div>}
                     <DialogFooter className="gap-2">
-                      <Button type="button" variant="outline" onClick={() => setAddOpen(false)} disabled={addLoading}>
-                        Annuler
-                      </Button>
-                      <Button type="submit" variant="default" disabled={addLoading}>
-                        {addLoading ? "Ajout..." : "Ajouter"}
-                      </Button>
+                      {addStep === 2 && (
+                        <Button type="button" variant="outline" onClick={() => setAddStep(1)} disabled={addLoading}>
+                          Précédent
+                        </Button>
+                      )}
+                      {addStep === 1 && (
+                        <Button type="button" variant="default" onClick={() => setAddStep(2)} disabled={addLoading}>
+                          Suivant
+                        </Button>
+                      )}
+                      {addStep === 2 && (
+                        <Button type="submit" variant="default" disabled={addLoading}>
+                          {addLoading ? "Ajout..." : "Ajouter"}
+                        </Button>
+                      )}
                     </DialogFooter>
                   </form>
                 </DialogContent>

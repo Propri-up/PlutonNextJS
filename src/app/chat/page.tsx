@@ -202,6 +202,14 @@ export default function ChatPage() {
           const errData = await response.json();
           if (errData && errData.error) errMsg = errData.error;
         } catch {}
+        // Gestion spécifique pour 401 Unauthorized
+        if (response.status === 401) {
+          setError("Vous n'êtes pas autorisé. Merci de vous reconnecter.");
+          // Optionnel: rediriger vers la page de login ou rafraîchir la page
+          // window.location.href = "/login";
+          setLoading(false);
+          return;
+        }
         throw new Error(errMsg);
       }
 
@@ -242,32 +250,34 @@ export default function ChatPage() {
       // Création selon l'onglet sélectionné
       const body: any = { chatType: selectedTab };
       if (selectedTab === 'property') {
-        body.propertyId = 0;
-        body.participantIds = [currentUserId];
+        setError("Veuillez sélectionner une propriété valide pour la conversation.");
+        setLoading(false);
+        return;
+        // Pour créer une conversation liée à une propriété, il faut demander l'ID réel de la propriété ici.
       } else {
         // Pour une discussion privée, pas de propertyId, mais il faut au moins le user courant
         body.propertyId = null;
         body.participantIds = [currentUserId];
+        const response = await fetch(`${API_URL}/api/chat/create`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(body),
+        });
+        if (!response.ok) {
+          let errMsg = `Erreur serveur: ${response.status}`;
+          try {
+            const errData = await response.json();
+            if (errData && errData.error) errMsg = errData.error;
+          } catch {}
+          throw new Error(errMsg);
+        }
+        const resp = await response.json();
+        const newChat = resp.chat;
+        setConversations((prev) => [newChat, ...prev]);
+        setCurrentChat(newChat);
+        setShowSidebar(false);
       }
-      const response = await fetch(`${API_URL}/api/chat/create`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(body),
-      });
-      if (!response.ok) {
-        let errMsg = `Erreur serveur: ${response.status}`;
-        try {
-          const errData = await response.json();
-          if (errData && errData.error) errMsg = errData.error;
-        } catch {}
-        throw new Error(errMsg);
-      }
-      const resp = await response.json();
-      const newChat = resp.chat;
-      setConversations((prev) => [newChat, ...prev]);
-      setCurrentChat(newChat);
-      setShowSidebar(false);
     } catch (err) {
       setError(
         err instanceof Error
