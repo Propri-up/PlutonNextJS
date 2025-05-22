@@ -52,7 +52,6 @@ export default function PropertyDetailsPage() {
   });
 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [contractDeleteModalOpen, setContractDeleteModalOpen] = useState(false); // for contract delete modal
 
   // Ajout pour la création de document
   const [createDocOpen, setCreateDocOpen] = useState(false);
@@ -193,52 +192,36 @@ export default function PropertyDetailsPage() {
     }
   };
 
-  const handleDelete = async () => {
+  const handleDeleteProperty = async () => {
     setLoading(true);
     setError(null);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
       if (!apiUrl) throw new Error("API_URL non défini");
       if (!property?.id) throw new Error("ID du bien manquant");
-      let res;
-      try {
-        res = await fetch(`${apiUrl}/api/properties/${property.id}`, {
-          method: 'DELETE',
-          credentials: 'include',
-        });
-      } catch (err) {
-        throw new Error("Erreur réseau : " + getErrorMessage(err));
-      }
+      const res = await fetch(`${apiUrl}/api/properties/${property.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
       if (!res.ok) {
         let errorMsg = `Erreur API (${res.status})`;
-        let errorData = null;
         try {
           const data = await res.json();
-          errorData = data;
           if (data && data.error) errorMsg = data.error;
         } catch (err) {
           errorMsg += ' (réponse non JSON)';
         }
         throw new Error(errorMsg);
       }
-      
-      // Fermer la modale de confirmation
       setDeleteConfirmOpen(false);
-      
-      // Afficher une notification de succès
       toast.success("Le bien immobilier a été supprimé avec succès", {
         description: "Redirection vers la liste des biens...",
         duration: 3000,
       });
-      
-      // Rediriger vers la liste des propriétés
       setTimeout(() => router.push('/properties'), 500);
     } catch (e: any) {
-      // Afficher l'erreur dans l'interface
       const errorMessage = getErrorMessage(e);
       setError(errorMessage);
-      
-      // Afficher une notification d'erreur
       toast.error("Erreur lors de la suppression", {
         description: errorMessage,
         duration: 5000,
@@ -418,9 +401,14 @@ export default function PropertyDetailsPage() {
                 <Button variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
                   <IconEdit className="h-4 w-4 mr-2" />Modifier
                 </Button>
-                {/* <Button variant="destructive" size="sm" onClick={() => setDeleteConfirmOpen(true)}>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setDeleteConfirmOpen(true)}
+                  className="flex items-center"
+                >
                   <IconTrash className="h-4 w-4 mr-2" />Supprimer
-                </Button> */}
+                </Button>
                 <Button asChild variant="default" size="sm">
                   <Link href={`/chat?propertyId=${property.id}`} prefetch={false}>
                     <IconMessageCircle className="h-4 w-4 mr-2" />Chat
@@ -487,6 +475,24 @@ export default function PropertyDetailsPage() {
                             <div className="flex gap-2">
                               <Button variant="outline" size="icon" asChild><a href={`mailto:${tenant.email}`} title="Envoyer un mail"><svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><polyline points="22,6 12,13 2,6"/></svg></a></Button>
                               {tenant.phone && <Button variant="outline" size="icon" asChild><a href={`tel:${tenant.phone}`} title="Appeler"><svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 16.92V21a2 2 0 0 1-2.18 2A19.72 19.72 0 0 1 3 5.18 2 2 0 0 1 5 3h4.09a2 2 0 0 1 2 1.72c.13.81.37 1.6.7 2.34a2 2 0 0 1-.45 2.11l-1.27 1.27a16 16 0 0 0 6.29 6.29l1.27-1.27a2 2 0 0 1 2.11-.45c.74.33 1.53.57 2.34.7A2 2 0 0 1 22 16.92z"></path></svg></a></Button>}
+                              <Button variant="destructive" size="sm" title="Supprimer ce locataire" onClick={async () => {
+                                try {
+                                  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+                                  const contract = contracts.find(c => Array.isArray(c.tenants) && c.tenants.some((t: any) => t.id === tenant.id));
+                                  if (!contract) throw new Error('Contrat introuvable pour ce locataire');
+                                  const res = await fetch(`${apiUrl}/api/contracts/${contract.contract?.id || contract.id}/tenants/${tenant.id}`, {
+                                    method: 'DELETE',
+                                    credentials: 'include',
+                                  });
+                                  if (!res.ok) throw new Error('Erreur lors de la suppression du locataire');
+                                  toast.success('Locataire supprimé avec succès');
+                                  setTenants(prev => prev.filter(t => t.id !== tenant.id));
+                                } catch (e: any) {
+                                  toast.error(e.message || 'Erreur lors de la suppression du locataire');
+                                }
+                              }}>
+                                Supprimer
+                              </Button>
                             </div>
                           </div>
                         ))
@@ -647,10 +653,13 @@ export default function PropertyDetailsPage() {
               <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Confirmer la suppression</DialogTitle>
+                    <DialogTitle>Supprimer ce bien ?</DialogTitle>
                   </DialogHeader>
-                  <div className="py-3">
-                    <p className="mb-3">Êtes-vous sûr de vouloir supprimer ce bien ? Cette action est irréversible.</p>
+                  <div className="py-3 space-y-3">
+                    <p className="mb-2 text-base">
+                      <strong>Attention :</strong> Cette action supprimera <span className="text-destructive font-semibold">définitivement</span> ce bien et toutes ses données associées (contrats, locataires, documents, chats, etc).<br />
+                      Cette opération est <strong>irréversible</strong>.
+                    </p>
                     {error && (
                       <div className="bg-destructive/10 text-destructive p-3 rounded-md mt-3 text-sm">
                         <strong>Erreur:</strong> {error}
@@ -664,7 +673,7 @@ export default function PropertyDetailsPage() {
                     }} disabled={loading}>
                       Annuler
                     </Button>
-                    <Button variant="destructive" onClick={handleDelete} disabled={loading}>
+                    <Button variant="destructive" onClick={handleDeleteProperty} disabled={loading}>
                       {loading ? (
                         <>
                           <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -673,7 +682,7 @@ export default function PropertyDetailsPage() {
                           </svg>
                           Suppression...
                         </>
-                      ) : "Supprimer"}
+                      ) : "Supprimer définitivement"}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
