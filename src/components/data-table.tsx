@@ -116,58 +116,6 @@ export const schema = z.object({
   reviewer: z.string(),
 })
 
-// New schema for dashboard statistics
-export const statsSchema = z.object({
-  stats: z.object({
-    propertyCount: z.number(),
-    totalRentalIncome: z.number(),
-    averageRent: z.number(),
-    occupancyRate: z.number(),
-    tenantCount: z.number(),
-    messageCount: z.number(),
-  }).nullable(),
-})
-
-// Create sample data for when stats are not available
-const sampleData = [
-  {
-    id: 1,
-    header: "Propriétés",
-    type: "KPI",
-    status: "Done",
-    target: "10",
-    limit: "20",
-    reviewer: "Auto",
-  },
-  {
-    id: 2,
-    header: "Revenus locatifs",
-    type: "KPI",
-    status: "Done",
-    target: "5000",
-    limit: "10000",
-    reviewer: "Auto",
-  },
-  {
-    id: 3,
-    header: "Locataires",
-    type: "KPI",
-    status: "Done",
-    target: "15",
-    limit: "30",
-    reviewer: "Auto",
-  },
-  {
-    id: 4,
-    header: "Taux d'occupation",
-    type: "KPI",
-    status: "Done",
-    target: "85%",
-    limit: "100%",
-    reviewer: "Auto",
-  },
-]
-
 // Create a separate component for the drag handle
 function DragHandle({ id }: { id: number }) {
   const { attributes, listeners } = useSortable({
@@ -389,11 +337,11 @@ function DraggableRow({ row }: { row: Row<z.infer<typeof schema>> }) {
 }
 
 export function DataTable({
-  data,
+  data: initialData,
 }: {
-  data: z.infer<typeof schema>[] | z.infer<typeof statsSchema>
+  data: z.infer<typeof schema>[]
 }) {
-  const isMobile = useIsMobile()
+  const [data, setData] = React.useState(() => initialData)
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({})
@@ -401,71 +349,24 @@ export function DataTable({
     []
   )
   const [sorting, setSorting] = React.useState<SortingState>([])
-  const [activeTab, setActiveTab] = React.useState<string>("active")
-  const [isPending, startTransition] = React.useTransition()
-  const [items, setItems] = React.useState<z.infer<typeof schema>[]>([])
   const [pagination, setPagination] = React.useState({
     pageIndex: 0,
     pageSize: 10,
   })
   const sortableId = React.useId()
-
-  // Convert statistics to table rows if needed
-  React.useEffect(() => {
-    if (Array.isArray(data)) {
-      setItems(data)
-    } else if (data.stats) {
-      const stats = data.stats
-      setItems([
-        {
-          id: 1,
-          header: "Propriétés",
-          type: "KPI",
-          status: "Done",
-          target: stats.propertyCount.toString(),
-          limit: (stats.propertyCount * 1.5).toFixed(0),
-          reviewer: "Auto",
-        },
-        {
-          id: 2,
-          header: "Revenus locatifs",
-          type: "KPI",
-          status: "Done",
-          target: stats.totalRentalIncome.toLocaleString("fr-FR") + " €",
-          limit: (stats.totalRentalIncome * 1.2).toLocaleString("fr-FR") + " €",
-          reviewer: "Auto",
-        },
-        {
-          id: 3,
-          header: "Locataires",
-          type: "KPI",
-          status: "Done",
-          target: stats.tenantCount.toString(),
-          limit: (stats.tenantCount * 1.5).toFixed(0),
-          reviewer: "Auto",
-        },
-        {
-          id: 4,
-          header: "Taux d'occupation",
-          type: "KPI",
-          status: "Done",
-          target: stats.occupancyRate + "%",
-          limit: "100%",
-          reviewer: "Auto",
-        },
-      ])
-    } else {
-      setItems(sampleData)
-    }
-  }, [data])
+  const sensors = useSensors(
+    useSensor(MouseSensor, {}),
+    useSensor(TouchSensor, {}),
+    useSensor(KeyboardSensor, {})
+  )
 
   const dataIds = React.useMemo<UniqueIdentifier[]>(
-    () => items?.map(({ id }) => id) || [],
-    [items]
+    () => data?.map(({ id }) => id) || [],
+    [data]
   )
 
   const table = useReactTable({
-    data: items,
+    data,
     columns,
     state: {
       sorting,
@@ -474,6 +375,7 @@ export function DataTable({
       columnFilters,
       pagination,
     },
+    getRowId: (row) => row.id.toString(),
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
@@ -488,19 +390,13 @@ export function DataTable({
     getFacetedUniqueValues: getFacetedUniqueValues(),
   })
 
-  const sensors = useSensors(
-    useSensor(MouseSensor, {}),
-    useSensor(TouchSensor, {}),
-    useSensor(KeyboardSensor, {})
-  )
-
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (active && over && active.id !== over.id) {
-      setItems((items) => {
+      setData((data) => {
         const oldIndex = dataIds.indexOf(active.id)
         const newIndex = dataIds.indexOf(over.id)
-        return arrayMove(items, oldIndex, newIndex)
+        return arrayMove(data, oldIndex, newIndex)
       })
     }
   }
