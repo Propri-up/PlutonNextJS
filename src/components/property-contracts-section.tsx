@@ -13,13 +13,14 @@ const documentTypeLabels: Record<string, string> = {
   "property-inspection": "État des lieux"
 };
 
-export function PropertyContractsSection({ propertyId, deleteModalOpen, setDeleteModalOpen }: { propertyId: number, deleteModalOpen?: boolean, setDeleteModalOpen?: (open: boolean) => void }) {
+export function PropertyContractsSection({ propertyId }: { propertyId: number }) {
   const [contracts, setContracts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<any>(null);
   const [contractDocs, setContractDocs] = useState<Record<number, any[]>>({}); // contractId -> documents
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [contractsList, setContractsList] = useState<any[]>([]);
@@ -96,6 +97,13 @@ export function PropertyContractsSection({ propertyId, deleteModalOpen, setDelet
     }
   };
 
+  const openDeleteModal = () => {
+    setDeleteModalOpen(true);
+    setDeleteError(null);
+    setSelectedContract(null);
+    fetchContractsList();
+  };
+
   const handleDeleteContract = async () => {
     if (!selectedContract) return;
     setDeleting(true);
@@ -121,6 +129,7 @@ export function PropertyContractsSection({ propertyId, deleteModalOpen, setDelet
       });
       if (!res.ok) throw new Error("Erreur lors de la suppression du contrat");
       toast.success("Contrat supprimé avec succès");
+      setDeleteModalOpen(false);
       setSelectedContract(null);
       // Refresh contracts
       setContracts((prev) => prev.filter((c) => c.contract.id !== selectedContract.contract.id));
@@ -153,12 +162,6 @@ export function PropertyContractsSection({ propertyId, deleteModalOpen, setDelet
       <Card className="w-full bg-card mt-6">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Contrats du bien</CardTitle>
-          {/* Add delete contract button here, only if setDeleteModalOpen is provided */}
-          {setDeleteModalOpen && (
-            <Button variant="destructive" size="sm" onClick={() => setDeleteModalOpen(true)}>
-              Supprimer un contrat
-            </Button>
-          )}
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -277,12 +280,8 @@ export function PropertyContractsSection({ propertyId, deleteModalOpen, setDelet
         </CardContent>
         <PdfPreviewModal open={showPreview} onClose={() => setShowPreview(false)} doc={previewDoc} />
       </Card>
-      {/* Delete contract modal, controlled by parent if props provided */}
-      <Dialog open={!!deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+      <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Supprimer un contrat</DialogTitle>
-          </DialogHeader>
           {deleteError && <div className="text-red-500 text-sm mb-2">{deleteError}</div>}
           {!selectedContract ? (
             <div>

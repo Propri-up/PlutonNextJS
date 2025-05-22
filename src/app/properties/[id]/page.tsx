@@ -551,8 +551,7 @@ export default function PropertyDetailsPage() {
                   Chargement des données du bien en cours...
                 </div>
               )}
-              <PropertyContractsSection propertyId={property.id} deleteModalOpen={contractDeleteModalOpen} setDeleteModalOpen={setContractDeleteModalOpen} contracts={contracts} />
-              {/* Modale d'édition */}
+<PropertyContractsSection propertyId={property.id} />     
               <Dialog open={editOpen} onOpenChange={(open) => { setEditOpen(open); if (!open) { setEditStep(1); setEditError(null); } }}>
                 <DialogContent>
                   <DialogHeader>
