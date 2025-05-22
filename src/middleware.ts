@@ -2,6 +2,7 @@
 // On importe le type d'auth et les helpers Next.js
 import type { auth } from "@/lib/auth-client";
 import { NextRequest, NextResponse } from "next/server";
+import { UserResponse, USER_TYPES } from "@/lib/types";
 
 // On définit le type Session à partir du type d'auth
 // Cela permet d'avoir l'autocomplétion et la vérification de type sur la session utilisateur
@@ -26,6 +27,29 @@ export async function middleware(request: NextRequest) {
     if (!session) {
       return NextResponse.redirect(new URL("/login", request.url));
     }
+    
+    // Fetch user data to check user type
+    const userResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/me`, {
+      headers: {
+        cookie: request.headers.get("cookie") || "",
+      },
+      credentials: "include",
+    });
+    
+    if (!userResponse.ok) {
+      console.error("Failed to fetch user data");
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+    
+    const userData = await userResponse.json() as UserResponse;
+    const userTypeId = userData.user?.userTypeId;
+    
+    // Allow access only for owner (1) or admin (3)
+    if (userTypeId !== USER_TYPES.OWNER && userTypeId !== USER_TYPES.ADMIN) {
+      console.log(`User has userTypeId: ${userTypeId}. Access denied.`);
+      return NextResponse.redirect(new URL("/unauthorized", request.url));
+    }
+    
     // Sinon, on laisse passer la requête
     return NextResponse.next();
   } catch (error) {
