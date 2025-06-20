@@ -387,7 +387,20 @@ export default function Home() {
                   transition={{ duration: 0.6, delay: 0.4 }}
                   className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 justify-center md:justify-start"
                 >
-                  {/* Place download buttons here if needed */}
+                  <a
+                    href="/app-release.apk"
+                    download
+                    className="inline-block focus:outline-none focus:ring-2 focus:ring-primary rounded-lg"
+                  >
+                    <Image
+                      src="/google-play-badge.png"
+                      alt="Télécharger sur Google Play"
+                      width={180}
+                      height={54}
+                      className="h-14 w-auto"
+                      priority
+                    />
+                  </a>
                 </motion.div>
               </div>
               <motion.div 
